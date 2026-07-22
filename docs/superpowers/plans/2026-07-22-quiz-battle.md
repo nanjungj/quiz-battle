@@ -216,7 +216,7 @@ git commit -m "feat: pure quiz logic (room code, scoring, answer check, ranking)
 
 **Interfaces:**
 - Consumes: (없음)
-- Produces: CSS 클래스 — `.board`(배경), `.panel`, `.btn`, `.btn-crayon`, `.opt`, `.opt.c1..c4`, `.ox-btn`, `.timer-ring`, `.timer-num`, `.timer-ring.urgent`, `.leader-row`, `.podium`, `.badge-x2`, `.handwrite`(폰트)
+- Produces: CSS 클래스 — `body`(배경), `.wrap`, `.panel`, `.btn`, `.btn-ghost`, `.opt`, `.opt.c1..c4`, `.ox`, `.ox-btn`, `.timer-ring`, `.timer-num`, `.timer-ring.warn`, `.timer-ring.urgent`, `.leader-row`, `.podium`, `.badge-x2`, `.handwrite`(폰트), `.center`, `.mt`, `.row`, `.hidden`
 
 이 태스크는 순수 스타일이라 자동 테스트 없음. 검증은 Task 4에서 화면과 함께 육안 확인.
 
