@@ -106,7 +106,8 @@ $('#saveQuiz').onclick = async () => {
 // startHosting은 Task 5에서 정의
 async function startHosting(quiz){ if (window.__startHosting) return window.__startHosting(quiz); }
 
-let room = null, roomCode = null, unsub = null, tick = null;
+let room = null, roomCode = null, unsub = null, tick = null, revealing = false;
+let hostQ = -1;
 
 window.__startHosting = async function(quiz) {
   if (!quiz.questions || !quiz.questions.length) { alert('문제가 없어요.'); return; }
@@ -119,6 +120,7 @@ function renderHost() {
   const host = document.getElementById('host');
   if (!room) return;
   if (room.state === 'waiting') {
+    hostQ = -1;
     const players = Object.values(room.players || {});
     host.innerHTML = `<h1>방 코드</h1>
       <div class="center" style="font-size:4rem;letter-spacing:.2em">${roomCode}</div>
@@ -128,10 +130,12 @@ function renderHost() {
       <div class="mt center"><button class="btn" id="startBtn">시작하기 ▶</button></div>`;
     document.getElementById('startBtn').onclick = () => gotoQuestion(0);
   } else if (room.state === 'question') {
-    renderQuestionScreen();
+    if (hostQ !== room.currentQ) { hostQ = room.currentQ; renderQuestionScreen(); }
   } else if (room.state === 'reveal') {
+    hostQ = -1;
     renderReveal();
   } else if (room.state === 'ended') {
+    hostQ = -1;
     renderEnded();
   }
 }
@@ -159,7 +163,7 @@ function renderQuestionScreen() {
     <h2 class="center">${escT(q.text)}</h2>
     ${renderChoicesPreview(q)}
     <div class="mt center"><button class="btn" id="revealBtn">정답 공개 →</button></div>`;
-  document.getElementById('revealBtn').onclick = doReveal;
+  document.getElementById('revealBtn').onclick = (e) => { e.currentTarget.disabled = true; doReveal(); };
   runTimer();
 }
 function renderChoicesPreview(q) {
@@ -185,19 +189,25 @@ function runTimer() {
 }
 
 async function doReveal() {
-  clearInterval(tick);
+  if (revealing) return;
   if (room.state !== 'question') return;
-  const idx = room.currentQ;
-  const q = room.questions[idx];
-  const answers = (room.answers && room.answers[idx]) || {};
-  // 채점 + 점수 반영
-  for (const [pid, a] of Object.entries(answers)) {
-    const correct = checkAnswer(q, a.value);
-    const remain = Math.max(0, ROUND_MS - (a.answeredAt - room.startedAt));
-    const gained = calcScore(correct, remain, !!q.double);
-    if (gained > 0) await db.addScore(roomCode, pid, gained);
+  revealing = true;
+  clearInterval(tick);
+  try {
+    const idx = room.currentQ;
+    const q = room.questions[idx];
+    const answers = (room.answers && room.answers[idx]) || {};
+    // 채점 + 점수 반영
+    for (const [pid, a] of Object.entries(answers)) {
+      const correct = checkAnswer(q, a.value);
+      const remain = Math.max(0, ROUND_MS - (a.answeredAt - room.startedAt));
+      const gained = calcScore(correct, remain, !!q.double);
+      if (gained > 0) await db.addScore(roomCode, pid, gained);
+    }
+    await db.setRoomState(roomCode, { state:'reveal' });
+  } finally {
+    revealing = false;
   }
-  await db.setRoomState(roomCode, { state:'reveal' });
 }
 
 function renderReveal() {
