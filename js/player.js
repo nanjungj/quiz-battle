@@ -4,6 +4,17 @@ import { ROUND_MS, rankPlayers } from './logic.js';
 const $ = s => document.querySelector(s);
 let code=null, playerId=null, room=null, myAnswer={}, tick=null, qKey=null;
 
+// QR로 접속한 경우: 주소의 ?room=코드 를 자동 입력하고 닉네임에 커서
+(function prefillFromUrl() {
+  const preRoom = (new URLSearchParams(location.search).get('room') || '').trim().toUpperCase();
+  if (preRoom) {
+    $('#code').value = preRoom;
+    $('#nick').focus();
+  } else {
+    $('#code').focus();
+  }
+})();
+
 $('#joinBtn').onclick = async () => {
   const c = $('#code').value.trim().toUpperCase();
   const nick = $('#nick').value.trim();
@@ -15,6 +26,8 @@ $('#joinBtn').onclick = async () => {
   $('#stage').classList.remove('hidden');
   db.subscribeRoom(code, r => { room = r; render(); });
 };
+$('#nick').addEventListener('keydown', e => { if (e.key === 'Enter') $('#joinBtn').click(); });
+$('#code').addEventListener('keydown', e => { if (e.key === 'Enter') $('#nick').focus(); });
 
 function render() {
   const s = $('#stage');

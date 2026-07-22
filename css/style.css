@@ -69,3 +69,32 @@ input, select, textarea{
 .center{ text-align:center; }
 .mt{ margin-top:16px; } .row{ display:flex; gap:10px; align-items:center; }
 .hidden{ display:none !important; }
+
+/* ===== QR 입장 (관리자 대기실) ===== */
+.qr-box{ background:#fff; padding:16px; border-radius:18px; display:inline-block; margin:8px auto; box-shadow:0 6px 24px rgba(0,0,0,.35); }
+.qr-box img, .qr-box canvas{ display:block; }
+.join-code{ font-size:1.6rem; letter-spacing:.15em; }
+.join-code b{ color:var(--accent); }
+.join-url{ font-size:.95rem; word-break:break-all; opacity:.6; }
+
+/* ===== 관리자 = PC/대형 스크린: 가독성 확대 (참가자 폰 화면엔 영향 없음) ===== */
+body.admin{ font-size:19px; }
+body.admin .wrap{ max-width:1000px; }
+body.admin h1{ font-size:3rem; }
+body.admin h2{ font-size:2.5rem; }
+body.admin h3{ font-size:1.9rem; }
+body.admin .btn{ font-size:1.4rem; padding:16px 30px; }
+body.admin .opt{ font-size:2rem; padding:30px; }
+body.admin .ox-btn{ font-size:5rem; padding:34px; }
+body.admin .leader-row{ font-size:1.7rem; padding:14px 22px; }
+body.admin .badge-x2{ font-size:1.15rem; padding:5px 16px; }
+body.admin .join-code{ font-size:2rem; }
+body.admin .timer-ring{ transform:scale(1.5); margin:44px auto 54px; }
+/* 방 코드 대기실 QR은 관리자에서 더 크게 */
+body.admin .qr-box{ padding:22px; }
+
+/* ===== 참가자 = 폰: 터치 친화 (탭 영역 크게) ===== */
+.opt{ min-height:64px; display:flex; align-items:center; justify-content:center; }
+.ox-btn{ min-height:120px; }
+#join input{ font-size:1.2rem; padding:14px; }
+#join .btn{ width:100%; font-size:1.3rem; padding:16px; }

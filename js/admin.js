@@ -122,12 +122,16 @@ function renderHost() {
   if (room.state === 'waiting') {
     hostQ = -1;
     const players = Object.values(room.players || {});
-    host.innerHTML = `<h1>방 코드</h1>
-      <div class="center" style="font-size:4rem;letter-spacing:.2em">${roomCode}</div>
-      <p class="center">참가자 화면에서 이 코드로 입장하세요.</p>
-      <h3>대기 중 (${players.length}명)</h3>
-      <div>${players.map(p=>`<span class="badge-x2" style="margin:4px">${escT(p.nick)}</span>`).join('')}</div>
+    const dir = location.pathname.replace(/[^/]*$/, '');   // 현재 폴더 (파일명 제거)
+    const joinUrl = location.origin + dir + 'index.html?room=' + roomCode;
+    host.innerHTML = `<h1 class="center">폰으로 QR을 찍어 입장하세요</h1>
+      <div class="center"><div class="qr-box"><div id="qrcode"></div></div></div>
+      <p class="center join-code">방 코드 <b>${roomCode}</b></p>
+      <p class="center join-url">${escT(joinUrl)}</p>
+      <h3 class="center mt">대기 중 (${players.length}명)</h3>
+      <div class="center">${players.map(p=>`<span class="badge-x2" style="margin:4px">${escT(p.nick)}</span>`).join('')}</div>
       <div class="mt center"><button class="btn" id="startBtn">시작하기 ▶</button></div>`;
+    renderQR(joinUrl);
     document.getElementById('startBtn').onclick = () => gotoQuestion(0);
   } else if (room.state === 'question') {
     if (hostQ !== room.currentQ) { hostQ = room.currentQ; renderQuestionScreen(); }
@@ -137,6 +141,21 @@ function renderHost() {
   } else if (room.state === 'ended') {
     hostQ = -1;
     renderEnded();
+  }
+}
+
+function renderQR(url) {
+  const el = document.getElementById('qrcode');
+  if (!el) return;
+  el.innerHTML = '';
+  if (window.QRCode) {
+    new window.QRCode(el, {
+      text: url, width: 240, height: 240,
+      colorDark: '#1c2119', colorLight: '#ffffff',
+      correctLevel: window.QRCode.CorrectLevel.M
+    });
+  } else {
+    el.innerHTML = '<p style="color:#333;font-weight:700">QR 로드 실패 — 아래 주소로 접속하세요</p>';
   }
 }
 
