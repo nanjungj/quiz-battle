@@ -104,6 +104,132 @@ $('#saveQuiz').onclick = async () => {
 };
 
 // startHosting은 Task 5에서 정의
-window.__startHosting = null;
 async function startHosting(quiz){ if (window.__startHosting) return window.__startHosting(quiz); }
-export { showView, $, startHosting };
+
+let room = null, roomCode = null, unsub = null, tick = null;
+
+window.__startHosting = async function(quiz) {
+  if (!quiz.questions || !quiz.questions.length) { alert('문제가 없어요.'); return; }
+  roomCode = await db.createRoom(quiz);
+  showView('host');
+  unsub = db.subscribeRoom(roomCode, r => { room = r; renderHost(); });
+};
+
+function renderHost() {
+  const host = document.getElementById('host');
+  if (!room) return;
+  if (room.state === 'waiting') {
+    const players = Object.values(room.players || {});
+    host.innerHTML = `<h1>방 코드</h1>
+      <div class="center" style="font-size:4rem;letter-spacing:.2em">${roomCode}</div>
+      <p class="center">참가자 화면에서 이 코드로 입장하세요.</p>
+      <h3>대기 중 (${players.length}명)</h3>
+      <div>${players.map(p=>`<span class="badge-x2" style="margin:4px">${escT(p.nick)}</span>`).join('')}</div>
+      <div class="mt center"><button class="btn" id="startBtn">시작하기 ▶</button></div>`;
+    document.getElementById('startBtn').onclick = () => gotoQuestion(0);
+  } else if (room.state === 'question') {
+    renderQuestionScreen();
+  } else if (room.state === 'reveal') {
+    renderReveal();
+  } else if (room.state === 'ended') {
+    renderEnded();
+  }
+}
+
+async function gotoQuestion(idx) {
+  clearInterval(tick);
+  const now = await db.serverNow();
+  await db.setRoomState(roomCode, { state:'question', currentQ: idx, startedAt: now });
+}
+
+function renderQuestionScreen() {
+  const host = document.getElementById('host');
+  const q = room.questions[room.currentQ];
+  host.innerHTML = `
+    <div class="row" style="justify-content:space-between">
+      <span>Q${room.currentQ+1}/${room.questions.length}</span>
+      ${q.double?'<span class="badge-x2">x2 점수!</span>':''}
+    </div>
+    <div class="timer-ring" id="ring">
+      <svg width="120" height="120"><circle class="bg" cx="60" cy="60" r="52" fill="none" stroke-width="12"/>
+      <circle class="fg" cx="60" cy="60" r="52" fill="none" stroke-width="12"
+        stroke-dasharray="${2*Math.PI*52}" stroke-dashoffset="0" id="fg"/></svg>
+      <div class="timer-num" id="num">20</div>
+    </div>
+    <h2 class="center">${escT(q.text)}</h2>
+    ${renderChoicesPreview(q)}
+    <div class="mt center"><button class="btn" id="revealBtn">정답 공개 →</button></div>`;
+  document.getElementById('revealBtn').onclick = doReveal;
+  runTimer();
+}
+function renderChoicesPreview(q) {
+  if (q.type==='mc') return `<div class="opts mt">${q.choices.map((c,j)=>`<div class="opt c${j+1}">${escT(c)}</div>`).join('')}</div>`;
+  if (q.type==='ox') return `<div class="ox mt"><div class="ox-btn o">O</div><div class="ox-btn x">X</div></div>`;
+  return `<p class="center">단답형 — 참가자가 직접 입력</p>`;
+}
+function runTimer() {
+  const num = document.getElementById('num');
+  const fg = document.getElementById('fg');
+  const ring = document.getElementById('ring');
+  const circ = 2*Math.PI*52;
+  clearInterval(tick);
+  tick = setInterval(async () => {
+    const now = await db.serverNow();
+    const remain = Math.max(0, ROUND_MS - (now - room.startedAt));
+    const sec = Math.ceil(remain/1000);
+    if (num) num.textContent = sec;
+    if (fg) fg.style.strokeDashoffset = circ * (1 - remain/ROUND_MS);
+    if (ring) { ring.classList.toggle('warn', sec<=10 && sec>5); ring.classList.toggle('urgent', sec<=5); }
+    if (remain<=0) { clearInterval(tick); doReveal(); }
+  }, 250);
+}
+
+async function doReveal() {
+  clearInterval(tick);
+  if (room.state !== 'question') return;
+  const idx = room.currentQ;
+  const q = room.questions[idx];
+  const answers = (room.answers && room.answers[idx]) || {};
+  // 채점 + 점수 반영
+  for (const [pid, a] of Object.entries(answers)) {
+    const correct = checkAnswer(q, a.value);
+    const remain = Math.max(0, ROUND_MS - (a.answeredAt - room.startedAt));
+    const gained = calcScore(correct, remain, !!q.double);
+    if (gained > 0) await db.addScore(roomCode, pid, gained);
+  }
+  await db.setRoomState(roomCode, { state:'reveal' });
+}
+
+function renderReveal() {
+  const host = document.getElementById('host');
+  const q = room.questions[room.currentQ];
+  const ranked = rankPlayers(room.players);
+  const answerText = q.type==='mc' ? q.choices[q.answer] : (q.type==='ox' ? q.answer : (q.accepted||[q.answer]).join(' / '));
+  const last = room.currentQ >= room.questions.length-1;
+  host.innerHTML = `<h2 class="center">✅ 정답: ${escT(answerText)}</h2>
+    <h3>현재 순위</h3>
+    ${ranked.slice(0,10).map((r,i)=>`<div class="leader-row"><span><span class="rank">${i+1}</span>${escT(r.nick)}</span><strong>${r.score}</strong></div>`).join('')}
+    <div class="mt center">
+      ${last ? '<button class="btn" id="endBtn">최종 결과 발표 🏆</button>'
+             : '<button class="btn" id="nextBtn">다음 문제 →</button>'}
+    </div>`;
+  const nb = document.getElementById('nextBtn'); if (nb) nb.onclick = () => gotoQuestion(room.currentQ+1);
+  const eb = document.getElementById('endBtn'); if (eb) eb.onclick = () => db.setRoomState(roomCode, { state:'ended' });
+}
+
+function renderEnded() {
+  const host = document.getElementById('host');
+  const ranked = rankPlayers(room.players);
+  const [p1,p2,p3] = ranked;
+  host.innerHTML = `<h1 class="center">🏆 최종 결과</h1>
+    <div class="podium">
+      <div class="col p2"><div>🥈 ${p2?escT(p2.nick):'-'}</div><div class="bar">${p2?p2.score:''}</div></div>
+      <div class="col p1"><div>🥇 ${p1?escT(p1.nick):'-'}</div><div class="bar">${p1?p1.score:''}</div></div>
+      <div class="col p3"><div>🥉 ${p3?escT(p3.nick):'-'}</div><div class="bar">${p3?p3.score:''}</div></div>
+    </div>
+    <h3>전체 순위</h3>
+    ${ranked.map((r,i)=>`<div class="leader-row"><span><span class="rank">${i+1}</span>${escT(r.nick)}</span><strong>${r.score}</strong></div>`).join('')}
+    <div class="mt center"><button class="btn" id="homeBtn">목록으로</button></div>`;
+  document.getElementById('homeBtn').onclick = () => { if (unsub) unsub(); openList(); };
+}
+function escT(s){ return String(s??'').replace(/</g,'&lt;'); }
