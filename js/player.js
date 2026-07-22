@@ -19,6 +19,7 @@ $('#joinBtn').onclick = async () => {
 function render() {
   const s = $('#stage');
   if (!room) return;
+  if (room.state !== 'question') clearInterval(tick);
   if (room.state === 'waiting') {
     s.innerHTML = `<h2 class="center">입장 완료! 🎉</h2><p class="center">곧 시작해요. 잠시만 기다려 주세요…</p>`;
   } else if (room.state === 'question') {
@@ -61,10 +62,10 @@ function runCountdown() {
 
 async function submit(idx, q, rawValue) {
   if (myAnswer[idx] !== undefined) return;
-  const now = await db.serverNow();
   const value = q.type==='mc' ? Number(rawValue) : rawValue;
-  myAnswer[idx] = value;
+  myAnswer[idx] = value;        // lock synchronously, before any await
   clearInterval(tick);
+  const now = await db.serverNow();
   await db.submitAnswer(code, idx, playerId, { value, answeredAt: now });
   render();
 }
