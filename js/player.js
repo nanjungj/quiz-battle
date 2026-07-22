@@ -1,8 +1,8 @@
 import * as db from './firebase.js';
-import { ROUND_MS } from './logic.js';
+import { ROUND_MS, rankPlayers } from './logic.js';
 
 const $ = s => document.querySelector(s);
-let code=null, playerId=null, room=null, myAnswer={}, tick=null;
+let code=null, playerId=null, room=null, myAnswer={}, tick=null, qKey=null;
 
 $('#joinBtn').onclick = async () => {
   const c = $('#code').value.trim().toUpperCase();
@@ -19,7 +19,7 @@ $('#joinBtn').onclick = async () => {
 function render() {
   const s = $('#stage');
   if (!room) return;
-  if (room.state !== 'question') clearInterval(tick);
+  if (room.state !== 'question') { clearInterval(tick); qKey = null; }
   if (room.state === 'waiting') {
     s.innerHTML = `<h2 class="center">입장 완료! 🎉</h2><p class="center">곧 시작해요. 잠시만 기다려 주세요…</p>`;
   } else if (room.state === 'question') {
@@ -35,6 +35,9 @@ function renderQuestion(s) {
   const idx = room.currentQ;
   const q = room.questions[idx];
   const answered = myAnswer[idx] !== undefined;
+  const key = idx + ':' + (answered ? 'a' : 'q');
+  if (key === qKey) return;   // skip incidental re-render (preserves typed input)
+  qKey = key;
   if (answered) {
     s.innerHTML = `<h2 class="center">제출 완료! ✍️</h2><p class="center">다른 참가자를 기다리는 중…</p>`;
     return;
@@ -56,7 +59,12 @@ function runCountdown() {
     const now = await db.serverNow();
     const sec = Math.max(0, Math.ceil((ROUND_MS-(now-room.startedAt))/1000));
     const el = $('#secDisplay'); if (el) el.textContent = sec;
-    if (sec<=0) clearInterval(tick);
+    if (sec<=0) {
+      clearInterval(tick);
+      document.querySelectorAll('[data-pick]').forEach(b => b.disabled = true);
+      const si = document.getElementById('shortBtn'); if (si) si.disabled = true;
+      const inp = document.getElementById('shortIn'); if (inp) inp.disabled = true;
+    }
   }, 300);
 }
 
@@ -71,9 +79,9 @@ async function submit(idx, q, rawValue) {
 }
 
 function renderResult(s) {
-  const me = (room.players||{})[playerId] || {};
-  const ranked = Object.values(room.players||{}).sort((a,b)=>(b.score||0)-(a.score||0));
-  const myRank = ranked.findIndex(p => p.nick===me.nick) + 1;
+  const ranked = rankPlayers(room.players || {});
+  const myRank = ranked.findIndex(r => r.id === playerId) + 1;
+  const me = (room.players || {})[playerId] || {};
   s.innerHTML = `<h2 class="center">현재 내 점수</h2>
     <div class="center" style="font-size:3rem">${me.score||0}점</div>
     <p class="center">현재 순위: ${myRank}위 / ${ranked.length}명</p>
@@ -81,9 +89,9 @@ function renderResult(s) {
 }
 
 function renderFinal(s) {
-  const me = (room.players||{})[playerId] || {};
-  const ranked = Object.values(room.players||{}).sort((a,b)=>(b.score||0)-(a.score||0));
-  const myRank = ranked.findIndex(p => p.nick===me.nick) + 1;
+  const ranked = rankPlayers(room.players || {});
+  const myRank = ranked.findIndex(r => r.id === playerId) + 1;
+  const me = (room.players || {})[playerId] || {};
   s.innerHTML = `<h1 class="center">🏁 끝!</h1>
     <div class="center" style="font-size:3rem">${myRank}위</div>
     <p class="center">${escT(me.nick)} · ${me.score||0}점</p>`;

@@ -38,12 +38,13 @@ export async function deleteQuiz(id) {
 
 export async function createRoom(quiz) {
   // 중복되지 않는 코드 확보
-  let code;
+  let code = null;
   for (let i = 0; i < 5; i++) {
-    code = generateRoomCode();
-    const exists = (await get(ref(db, 'rooms/' + code))).exists();
-    if (!exists) break;
+    const candidate = generateRoomCode();
+    const exists = (await get(ref(db, 'rooms/' + candidate))).exists();
+    if (!exists) { code = candidate; break; }
   }
+  if (!code) throw new Error('방 코드 생성 실패 — 다시 시도해 주세요.');
   await set(ref(db, 'rooms/' + code), {
     quizId: quiz.id, quizTitle: quiz.title, questions: quiz.questions,
     state: 'waiting', currentQ: -1, startedAt: 0

@@ -43,5 +43,5 @@ export function calcScore(isCorrect, remainingMs, isDouble) {
 export function rankPlayers(players) {
   return Object.entries(players || {})
     .map(([id, p]) => ({ id, nick: p.nick, score: p.score || 0 }))
-    .sort((a, b) => b.score - a.score || a.nick.localeCompare(b.nick));
+    .sort((a, b) => b.score - a.score || (a.nick||'').localeCompare(b.nick||''));
 }

@@ -202,7 +202,7 @@ async function doReveal() {
       const correct = checkAnswer(q, a.value);
       const remain = Math.max(0, ROUND_MS - (a.answeredAt - room.startedAt));
       const gained = calcScore(correct, remain, !!q.double);
-      if (gained > 0) await db.addScore(roomCode, pid, gained);
+      if (gained > 0 && remain > 0) await db.addScore(roomCode, pid, gained);
     }
     await db.setRoomState(roomCode, { state:'reveal' });
   } finally {
