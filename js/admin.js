@@ -25,7 +25,7 @@ async function openList() {
   quizzes.forEach(q => {
     const row = document.createElement('div');
     row.className = 'leader-row';
-    row.innerHTML = `<span>${q.title || '(제목 없음)'} · ${(q.questions||[]).length}문항</span>`;
+    row.innerHTML = `<span>${esc(q.title || '(제목 없음)')} · ${(q.questions||[]).length}문항</span>`;
     const actions = document.createElement('div');
     const play = mkBtn('▶ 진행', () => startHosting(q));
     const edit = mkBtn('✏️', () => openEditor(q));
@@ -87,10 +87,16 @@ function renderQuestions() {
   box.querySelectorAll('[data-accepted]').forEach(el => el.oninput = e => { const i=+el.dataset.accepted; const arr=e.target.value.split('\n').map(s=>s.trim()).filter(Boolean); draft.questions[i].accepted=arr; draft.questions[i].answer=arr[0]||''; });
   box.querySelectorAll('[data-del]').forEach(el => el.onclick = () => { draft.questions.splice(+el.dataset.del,1); renderQuestions(); });
 }
-function esc(s){ return String(s??'').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+function esc(s){ return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
 $('#saveQuiz').onclick = async () => {
   draft.title = $('#quizTitle').value.trim() || '제목 없는 퀴즈쇼';
+  draft.questions.forEach(q => {
+    if (q.type === 'short') {
+      q.accepted = (q.accepted || []).map(s => String(s).trim()).filter(Boolean);
+      q.answer = q.accepted[0] || '';
+    }
+  });
   const id = await db.saveQuiz(draft);
   draft.id = id;
   alert('저장했어요!');
