@@ -1,6 +1,6 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import {
-  getDatabase, ref, push, set, update, get, onValue, child, serverTimestamp
+  getDatabase, ref, push, set, update, get, onValue
 } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
 import { generateRoomCode } from './logic.js';
 
@@ -74,4 +74,3 @@ export async function serverNow() {
   const offSnap = await get(ref(db, '.info/serverTimeOffset'));
   return Date.now() + (offSnap.val() || 0);
 }
-export { serverTimestamp };
