@@ -4,15 +4,18 @@ import {
 } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
 import { generateRoomCode } from './logic.js';
 
-// ▼▼▼ README의 안내대로 본인 Firebase 프로젝트 값으로 교체 ▼▼▼
+// 드라큘라 게임과 동일한 Firebase 프로젝트(dracula-818e1) 재사용.
+// 퀴즈 앱은 quizzes/ · rooms/ 최상위 경로만 사용하므로 드라큘라 데이터와 겹치지 않음.
+// 별도 프로젝트로 분리하려면 아래 값을 새 프로젝트 값으로 교체하세요(README 참고).
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT.firebaseapp.com",
-  databaseURL: "https://YOUR_PROJECT-default-rtdb.firebaseio.com",
-  projectId: "YOUR_PROJECT",
-  appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyC_4BznNUK9uWgK-KN4gyeox7vpNf01nWg",
+  authDomain: "dracula-818e1.firebaseapp.com",
+  databaseURL: "https://dracula-818e1-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "dracula-818e1",
+  storageBucket: "dracula-818e1.firebasestorage.app",
+  messagingSenderId: "973501633681",
+  appId: "1:973501633681:web:a2283a33de9d468d141b30"
 };
-// ▲▲▲ 교체 끝 ▲▲▲
 
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
@@ -72,6 +75,13 @@ export async function addScore(code, playerId, delta) {
   await set(ref(db, `rooms/${code}/players/${playerId}/score`), cur + delta);
 }
 export async function serverNow() {
-  const offSnap = await get(ref(db, '.info/serverTimeOffset'));
-  return Date.now() + (offSnap.val() || 0);
+  // NOTE: .info/* paths are populated by a local sync mechanism, not the
+  // server REST API. get() on '.info/serverTimeOffset' throws
+  // "Invalid token in path" — only onValue() (a realtime listener) works here.
+  return new Promise((resolve) => {
+    const offRef = ref(db, '.info/serverTimeOffset');
+    onValue(offRef, (snap) => {
+      resolve(Date.now() + (snap.val() || 0));
+    }, { onlyOnce: true });
+  });
 }
