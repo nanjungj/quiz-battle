@@ -1,5 +1,6 @@
 import * as db from './firebase.js';
 import { checkAnswer, calcScore, rankPlayers, ROUND_MS } from './logic.js';
+import { startMusic, stopMusic, setUrgent, toggleMute, playVictory } from './music.js';
 
 const ADMIN_PASSWORD = 'quiz2026'; // README 2절 참고 — 원하는 값으로 변경
 
@@ -8,6 +9,9 @@ function showView(id) {
   views.forEach(v => document.getElementById(v).classList.toggle('hidden', v !== id));
 }
 const $ = s => document.querySelector(s);
+
+// ---- 배경음악 음소거 토글 ----
+$('#muteBtn').onclick = () => { $('#muteBtn').textContent = toggleMute() ? '🔇' : '🔊'; };
 
 // ---- 암호 게이트 ----
 $('#pwBtn').onclick = () => {
@@ -107,10 +111,11 @@ $('#saveQuiz').onclick = async () => {
 async function startHosting(quiz){ if (window.__startHosting) return window.__startHosting(quiz); }
 
 let room = null, roomCode = null, unsub = null, tick = null, revealing = false;
-let hostQ = -1;
+let hostQ = -1, victoryDone = false;
 
 window.__startHosting = async function(quiz) {
   if (!quiz.questions || !quiz.questions.length) { alert('문제가 없어요.'); return; }
+  victoryDone = false;
   roomCode = await db.createRoom(quiz);
   showView('host');
   unsub = db.subscribeRoom(roomCode, r => { room = r; renderHost(); });
@@ -160,6 +165,8 @@ function renderQR(url) {
 }
 
 async function gotoQuestion(idx) {
+  setUrgent(false);
+  startMusic();          // 버튼 클릭(제스처) 안에서 호출 → 오디오 재생 잠금 해제
   clearInterval(tick);
   const now = await db.serverNow();
   await db.setRoomState(roomCode, { state:'question', currentQ: idx, startedAt: now });
@@ -203,6 +210,7 @@ function runTimer() {
     if (num) num.textContent = sec;
     if (fg) fg.style.strokeDashoffset = circ * (1 - remain/ROUND_MS);
     if (ring) { ring.classList.toggle('warn', sec<=10 && sec>5); ring.classList.toggle('urgent', sec<=5); }
+    setUrgent(sec<=5 && remain>0);   // 마지막 5초 음악 템포 가속
     if (remain<=0) { clearInterval(tick); doReveal(); }
   }, 250);
 }
@@ -212,6 +220,7 @@ async function doReveal() {
   if (room.state !== 'question') return;
   revealing = true;
   clearInterval(tick);
+  stopMusic();           // 정답 공개 시 배경음악 정지
   try {
     const idx = room.currentQ;
     const q = room.questions[idx];
@@ -248,6 +257,8 @@ function renderReveal() {
 
 function renderEnded() {
   const host = document.getElementById('host');
+  stopMusic();
+  if (!victoryDone) { victoryDone = true; playVictory(); }   // 승리 팡파레 1회
   const ranked = rankPlayers(room.players);
   const [p1,p2,p3] = ranked;
   host.innerHTML = `<h1 class="center">🏆 최종 결과</h1>
