@@ -373,6 +373,12 @@ function renderHost() {
     hostQ = -1;
     renderEnded();
   }
+  // 다음 문제 이미지를 미리 받아 둔다 — 문제가 시작되자마자 떠 있어야 20초가 공평하다
+  if (room && room.questions) {
+    const next = room.state === 'waiting' ? 0 : (room.currentQ ?? -1) + 1;
+    const nq = room.questions[next];
+    if (nq && nq.image) prefetchImage(room.quizId, nq.image.id);
+  }
 }
 
 function renderQR(url) {
@@ -401,6 +407,18 @@ async function gotoQuestion(idx) {
 function renderQuestionScreen() {
   const host = document.getElementById('host');
   const q = room.questions[room.currentQ];
+  const body = q.image
+    ? `<div class="row" style="gap:36px;flex:1;flex-wrap:nowrap;align-items:center">
+         <div style="flex:1.05;min-width:0">${hostImgMarkup(q)}</div>
+         <div class="stack" style="flex:1;min-width:0">
+           <h2 style="font-size:2rem">${escT(q.text)}</h2>
+           ${renderChoicesPreview(q, true)}
+         </div>
+       </div>`
+    : `<div class="stack" style="flex:1;justify-content:center;gap:28px">
+         <h2 style="font-size:2.6rem">${escT(q.text)}</h2>
+         ${renderChoicesPreview(q, false)}
+       </div>`;
   host.innerHTML = `<div class="panel" style="flex:1">
     <div class="row">
       <span class="pill pill-primary">Q${room.currentQ + 1} / ${room.questions.length}</span>
@@ -417,16 +435,30 @@ function renderQuestionScreen() {
         <div class="timer-num" id="num">20</div>
       </div>
     </div>
-    <div class="stack" style="flex:1;justify-content:center;gap:28px">
-      <h2 style="font-size:2.6rem">${escT(q.text)}</h2>
-      ${renderChoicesPreview(q, false)}
-    </div>
+    ${body}
     <div class="row" style="justify-content:flex-end">
       <button class="btn" id="revealBtn">정답 공개 →</button>
     </div>
   </div>`;
+  fillHostImg(q);
   document.getElementById('revealBtn').onclick = (e) => { e.currentTarget.disabled = true; doReveal(); };
   runTimer();
+}
+
+// 대형 스크린: 이미지가 있으면 좌우 2단, 없으면 기존 세로 배치
+function hostImgMarkup(q) {
+  if (!q.image) return '';
+  return `<div class="qimg loading" id="qimg" style="aspect-ratio:${q.image.w}/${q.image.h}"></div>`;
+}
+async function fillHostImg(q) {
+  if (!q.image) return;
+  const box = document.getElementById('qimg');
+  if (!box) return;
+  const url = await getImage(room.quizId, q.image.id).catch(() => null);
+  if (!url) { box.remove(); return; }
+  if (document.getElementById('qimg') !== box) return;
+  box.classList.remove('loading');
+  box.innerHTML = `<img src="${url}" alt="문제 이미지">`;
 }
 
 // 현재 문제에 제출한 사람 수
@@ -438,7 +470,7 @@ function answeredCount(r) {
 function renderChoicesPreview(q, stacked) {
   if (q.type === 'mc') {
     const cols = stacked ? '1fr' : '1fr 1fr';
-    return `<div class="opts" style="grid-template-columns:${cols}">${q.choices.map((c, j) =>
+    return `<div class="opts${stacked ? ' stacked' : ''}" style="grid-template-columns:${cols}">${q.choices.map((c, j) =>
       `<div class="choice c${j + 1}"><span class="shape">${SHAPES[j]}</span><span>${escT(c)}</span></div>`
     ).join('')}</div>`;
   }

@@ -1,6 +1,8 @@
 import * as db from './firebase.js';
 import { ROUND_MS, rankPlayers, checkAnswer } from './logic.js';
 
+import { getImage, prefetchImage } from './image.js';
+
 const $ = s => document.querySelector(s);
 const SHAPES = ['▲', '◆', '●', '■'];
 let code=null, playerId=null, room=null, myAnswer={}, tick=null, qKey=null;
@@ -47,6 +49,7 @@ function render() {
   } else if (room.state === 'ended') {
     renderFinal(s);
   }
+  prefetchNext();
 }
 
 function renderQuestion(s) {
@@ -81,8 +84,9 @@ function renderQuestion(s) {
   }
 
   let controls = '';
+  const tight = q.image ? ' tight' : '';
   if (q.type === 'mc') {
-    controls = `<div class="opts" style="flex:1">${q.choices.map((c, j) =>
+    controls = `<div class="opts${tight}" style="flex:1">${q.choices.map((c, j) =>
       `<button class="choice c${j + 1}" data-pick="${j}">
          <span class="shape">${SHAPES[j]}</span><span>${escT(c)}</span>
        </button>`).join('')}</div>`;
@@ -99,11 +103,38 @@ function renderQuestion(s) {
   s.innerHTML = `<div class="panel stack" style="flex:1">
     ${head}
     <h2>${escT(q.text)}</h2>
+    ${qimgMarkup(q)}
     ${controls}
   </div>`;
+  fillQimg(q);
   s.querySelectorAll('[data-pick]').forEach(b => b.onclick = () => submit(idx, q, b.dataset.pick));
   const sb = $('#shortBtn'); if (sb) sb.onclick = () => submit(idx, q, $('#shortIn').value);
   runCountdown();
+}
+
+// 이미지는 자리만 먼저 잡고 비동기로 채운다 — w/h를 알고 있으므로 화면이 덜컥거리지 않는다
+function qimgMarkup(q) {
+  if (!q.image) return '';
+  return `<div class="qimg loading" id="qimg" style="aspect-ratio:${q.image.w}/${q.image.h}"></div>`;
+}
+
+async function fillQimg(q) {
+  if (!q.image) return;
+  const box = document.getElementById('qimg');
+  if (!box) return;
+  const url = await getImage(room.quizId, q.image.id).catch(() => null);
+  if (!url) { box.remove(); return; }          // 못 받으면 자리를 접는다 — 문제 풀이는 막지 않는다
+  if (document.getElementById('qimg') !== box) return;
+  box.classList.remove('loading');
+  box.innerHTML = `<img src="${url}" alt="문제 이미지">`;
+}
+
+// 대기·정답공개 중에 다음 문제 이미지를 미리 받아 둔다
+function prefetchNext() {
+  if (!room || !room.questions) return;
+  const next = room.state === 'waiting' ? 0 : (room.currentQ ?? -1) + 1;
+  const q = room.questions[next];
+  if (q && q.image) prefetchImage(room.quizId, q.image.id);
 }
 
 // 고른 답을 그대로 보여 준다 — "내가 뭘 눌렀지?"를 없앤다
