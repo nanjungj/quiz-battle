@@ -38,7 +38,7 @@ async function openList() {
     actions.style.marginLeft = 'auto';
     const play = mkBtn('▶ 진행', () => startHosting(q));
     const edit = mkBtn('✏️ 편집', () => openEditor(q), true);
-    const del  = mkBtn('🗑', async () => {
+    const del  = mkBtn('🗑️', async () => {
       if (confirm(`"${q.title || '(제목 없음)'}" 퀴즈쇼를 삭제할까요?`)) { await db.deleteQuiz(q.id); openList(); }
     }, true);
     actions.append(play, edit, del);
@@ -57,52 +57,141 @@ $('#newQuizBtn').onclick = () => openEditor({ title:'', questions:[] });
 $('#backToList').onclick = openList;
 
 // ---- 편집기 ----
-let draft = null;
+let draft = null, openIdx = -1;
 function openEditor(quiz) {
   draft = JSON.parse(JSON.stringify(quiz));
+  openIdx = draft.questions.length ? 0 : -1;
   $('#quizTitle').value = draft.title || '';
   renderQuestions();
   showView('editor');
 }
-$('#addMc').onclick = () => { draft.questions.push({ type:'mc', text:'', choices:['','','',''], answer:0, double:false }); renderQuestions(); };
-$('#addOx').onclick = () => { draft.questions.push({ type:'ox', text:'', answer:'O', double:false }); renderQuestions(); };
-$('#addShort').onclick = () => { draft.questions.push({ type:'short', text:'', answer:'', accepted:[''], double:false }); renderQuestions(); };
+
+const TYPE_LABEL = { mc: '객관식', ox: 'O/X', short: '단답형' };
+function addQuestion(q) {
+  draft.questions.push(q);
+  openIdx = draft.questions.length - 1;
+  renderQuestions();
+}
+$('#addMc').onclick = () =>
+  addQuestion({ type:'mc', text:'', choices:['','','',''], answer:0, double:false });
+$('#addOx').onclick = () =>
+  addQuestion({ type:'ox', text:'', answer:'O', double:false });
+$('#addShort').onclick = () =>
+  addQuestion({ type:'short', text:'', answer:'', accepted:[''], double:false });
 
 function renderQuestions() {
-  const box = $('#questions'); box.innerHTML = '';
+  const box = document.getElementById('questions');
+  box.innerHTML = '';
+  if (!draft.questions.length) {
+    box.innerHTML = '<p class="muted center">아직 문제가 없어요. 아래에서 유형을 골라 추가하세요.</p>';
+    return;
+  }
   draft.questions.forEach((q, i) => {
     const card = document.createElement('div');
-    card.className = 'panel'; card.style.marginBottom = '12px';
-    let inner = `<div class="row" style="justify-content:space-between">
-      <strong>Q${i+1} · ${({mc:'객관식',ox:'O/X',short:'단답형'})[q.type]}</strong>
-      <label class="row"><input type="checkbox" style="width:auto" ${q.double?'checked':''} data-dbl="${i}"> x2 점수</label></div>`;
-    inner += `<input placeholder="문제 내용" value="${esc(q.text)}" data-text="${i}">`;
-    if (q.type === 'mc') {
-      inner += '<div class="opts mt">';
-      q.choices.forEach((c, j) => {
-        inner += `<div><input placeholder="보기 ${j+1}" value="${esc(c)}" data-choice="${i}-${j}">
-          <label class="row"><input type="radio" name="ans${i}" style="width:auto" ${q.answer===j?'checked':''} data-ans="${i}-${j}"> 정답</label></div>`;
-      });
-      inner += '</div>';
-    } else if (q.type === 'ox') {
-      inner += `<div class="mt row"><label><input type="radio" name="ans${i}" style="width:auto" ${q.answer==='O'?'checked':''} data-oxans="${i}-O"> O 정답</label>
-        <label><input type="radio" name="ans${i}" style="width:auto" ${q.answer==='X'?'checked':''} data-oxans="${i}-X"> X 정답</label></div>`;
-    } else {
-      inner += `<div class="mt"><small>인정 답안(줄바꿈으로 여러 개)</small>
-        <textarea rows="3" data-accepted="${i}">${esc((q.accepted||[q.answer]).join('\n'))}</textarea></div>`;
+    card.className = 'qcard' + (i === openIdx ? ' open' : '');
+    const preview = q.text ? esc(q.text) : '<span class="muted">(문제 내용 없음)</span>';
+    let html = `<div class="qcard-head" data-open="${i}">
+      <span class="pill ${i === openIdx ? 'pill-primary' : ''}">Q${i + 1} · ${TYPE_LABEL[q.type]}</span>
+      ${q.double ? '<span class="pill pill-amber">x2</span>' : ''}
+      <span class="title">${preview}</span>
+      <span class="tools">
+        <button data-up="${i}" title="위로">↑</button>
+        <button data-down="${i}" title="아래로">↓</button>
+        <button data-dup="${i}" title="복제">⧉</button>
+        <button data-del="${i}" title="삭제">🗑️</button>
+        <button data-open2="${i}" title="펼치기/접기">${i === openIdx ? '⌃' : '⌄'}</button>
+      </span>
+    </div>`;
+
+    if (i === openIdx) {
+      html += '<div class="qcard-body">';
+      html += `<div class="field"><label for="qtext${i}">문제 내용</label>
+        <input id="qtext${i}" placeholder="문제 내용" value="${esc(q.text)}" data-text="${i}"></div>`;
+      html += `<label class="row"><input type="checkbox" ${q.double ? 'checked' : ''} data-dbl="${i}"> x2 점수 문제</label>`;
+
+      if (q.type === 'mc') {
+        html += '<div class="field"><label>보기 — 동그라미를 눌러 정답을 고르세요</label><div class="stack">';
+        q.choices.forEach((c, j) => {
+          html += `<div class="ansopt ${q.answer === j ? 'on' : ''}">
+            <button class="dot" data-ans="${i}-${j}" title="이 보기를 정답으로">✓</button>
+            <input placeholder="보기 ${j + 1}" value="${esc(c)}" data-choice="${i}-${j}">
+          </div>`;
+        });
+        html += '</div></div>';
+      } else if (q.type === 'ox') {
+        html += `<div class="field"><label>정답</label><div class="row">
+          <div class="ansopt ${q.answer === 'O' ? 'on' : ''}" style="flex:1">
+            <button class="dot" data-oxans="${i}-O">✓</button><span style="font-weight:900">O</span></div>
+          <div class="ansopt ${q.answer === 'X' ? 'on' : ''}" style="flex:1">
+            <button class="dot" data-oxans="${i}-X">✓</button><span style="font-weight:900">X</span></div>
+        </div></div>`;
+      } else {
+        html += `<div class="field"><label for="qacc${i}">인정 답안 — 한 줄에 하나씩</label>
+          <textarea id="qacc${i}" rows="3" data-accepted="${i}">${esc((q.accepted || [q.answer]).join('\n'))}</textarea></div>`;
+      }
+      html += '</div>';
     }
-    inner += `<div class="mt"><button class="btn btn-ghost" data-del="${i}">문제 삭제</button></div>`;
-    card.innerHTML = inner;
+    card.innerHTML = html;
     box.append(card);
   });
-  // 이벤트 바인딩
-  box.querySelectorAll('[data-text]').forEach(el => el.oninput = e => draft.questions[+el.dataset.text].text = e.target.value);
-  box.querySelectorAll('[data-dbl]').forEach(el => el.onchange = e => draft.questions[+el.dataset.dbl].double = e.target.checked);
-  box.querySelectorAll('[data-choice]').forEach(el => el.oninput = e => { const [i,j]=el.dataset.choice.split('-').map(Number); draft.questions[i].choices[j]=e.target.value; });
-  box.querySelectorAll('[data-ans]').forEach(el => el.onchange = e => { const [i,j]=el.dataset.ans.split('-').map(Number); draft.questions[i].answer=j; });
-  box.querySelectorAll('[data-oxans]').forEach(el => el.onchange = e => { const [i,v]=el.dataset.oxans.split('-'); draft.questions[+i].answer=v; });
-  box.querySelectorAll('[data-accepted]').forEach(el => el.oninput = e => { const i=+el.dataset.accepted; const arr=e.target.value.split('\n').map(s=>s.trim()).filter(Boolean); draft.questions[i].accepted=arr; draft.questions[i].answer=arr[0]||''; });
-  box.querySelectorAll('[data-del]').forEach(el => el.onclick = () => { draft.questions.splice(+el.dataset.del,1); renderQuestions(); });
+  bindEditorEvents(box);
+}
+
+function bindEditorEvents(box) {
+  const toggle = i => { openIdx = (openIdx === i ? -1 : i); renderQuestions(); };
+  box.querySelectorAll('[data-open]').forEach(el => el.onclick = e => {
+    if (e.target.closest('.tools')) return;      // 도구 버튼 클릭은 펼침 토글이 아니다
+    toggle(+el.dataset.open);
+  });
+  box.querySelectorAll('[data-open2]').forEach(el => el.onclick = () => toggle(+el.dataset.open2));
+  box.querySelectorAll('[data-up]').forEach(el => el.onclick = () => move(+el.dataset.up, -1));
+  box.querySelectorAll('[data-down]').forEach(el => el.onclick = () => move(+el.dataset.down, +1));
+  box.querySelectorAll('[data-dup]').forEach(el => el.onclick = () => {
+    const i = +el.dataset.dup;
+    draft.questions.splice(i + 1, 0, JSON.parse(JSON.stringify(draft.questions[i])));
+    openIdx = i + 1;
+    renderQuestions();
+  });
+  box.querySelectorAll('[data-del]').forEach(el => el.onclick = () => {
+    const i = +el.dataset.del;
+    if (!confirm(`Q${i + 1}을 삭제할까요?`)) return;
+    draft.questions.splice(i, 1);
+    if (openIdx >= draft.questions.length) openIdx = draft.questions.length - 1;
+    renderQuestions();
+  });
+  box.querySelectorAll('[data-text]').forEach(el => el.oninput = e =>
+    draft.questions[+el.dataset.text].text = e.target.value);
+  box.querySelectorAll('[data-dbl]').forEach(el => el.onchange = e =>
+    draft.questions[+el.dataset.dbl].double = e.target.checked);
+  box.querySelectorAll('[data-choice]').forEach(el => el.oninput = e => {
+    const [i, j] = el.dataset.choice.split('-').map(Number);
+    draft.questions[i].choices[j] = e.target.value;
+  });
+  box.querySelectorAll('[data-ans]').forEach(el => el.onclick = () => {
+    const [i, j] = el.dataset.ans.split('-').map(Number);
+    draft.questions[i].answer = j;
+    renderQuestions();
+  });
+  box.querySelectorAll('[data-oxans]').forEach(el => el.onclick = () => {
+    const [i, v] = el.dataset.oxans.split('-');
+    draft.questions[+i].answer = v;
+    renderQuestions();
+  });
+  box.querySelectorAll('[data-accepted]').forEach(el => el.oninput = e => {
+    const i = +el.dataset.accepted;
+    const arr = e.target.value.split('\n').map(s => s.trim()).filter(Boolean);
+    draft.questions[i].accepted = arr;
+    draft.questions[i].answer = arr[0] || '';
+  });
+}
+
+function move(i, delta) {
+  const j = i + delta;
+  if (j < 0 || j >= draft.questions.length) return;
+  const [q] = draft.questions.splice(i, 1);
+  draft.questions.splice(j, 0, q);
+  openIdx = j;
+  renderQuestions();
 }
 function esc(s){ return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
@@ -116,7 +205,6 @@ $('#saveQuiz').onclick = async () => {
   });
   const id = await db.saveQuiz(draft);
   draft.id = id;
-  alert('저장했어요!');
   openList();
 };
 
