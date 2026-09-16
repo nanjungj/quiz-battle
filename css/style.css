@@ -82,7 +82,7 @@ input[type=checkbox],input[type=radio]{ width:auto; padding:0; }
 }
 .choice:hover{ border-color:var(--c); }
 .choice.picked{ border-color:var(--c); border-width:2px; box-shadow:var(--shadow-lg); }
-.choice.dim{ opacity:.4; }
+.dim{ opacity:.35; }   /* 고르지 않은 보기 — .choice와 .ox-btn 양쪽에 쓴다 */
 .choice:disabled{ cursor:default; }
 .c1{ --c:var(--primary); } .c2{ --c:var(--mint); } .c3{ --c:var(--amber); } .c4{ --c:var(--coral); }
 
