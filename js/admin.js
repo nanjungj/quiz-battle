@@ -1,6 +1,7 @@
 import * as db from './firebase.js';
 import { checkAnswer, calcScore, rankPlayers, ROUND_MS } from './logic.js';
 import { startMusic, stopMusic, setUrgent, toggleMute, playVictory } from './music.js';
+import { prepareImage, getImage, prefetchImage, cacheImage } from './image.js';
 
 const ADMIN_PASSWORD = 'quiz2026'; // README 2절 참고 — 원하는 값으로 변경
 
@@ -60,6 +61,7 @@ $('#backToList').onclick = openList;
 let draft = null, openIdx = -1;
 function openEditor(quiz) {
   draft = JSON.parse(JSON.stringify(quiz));
+  if (!draft.id) draft.id = db.newId();   // 저장 전에도 이미지를 넣을 경로가 있어야 한다
   openIdx = draft.questions.length ? 0 : -1;
   $('#quizTitle').value = draft.title || '';
   renderQuestions();
@@ -107,6 +109,7 @@ function renderQuestions() {
       html += '<div class="qcard-body">';
       html += `<div class="field"><label for="qtext${i}">문제 내용</label>
         <input id="qtext${i}" placeholder="문제 내용" value="${esc(q.text)}" data-text="${i}"></div>`;
+      html += imgDropMarkup(q, i);
       html += `<label class="row"><input type="checkbox" ${q.double ? 'checked' : ''} data-dbl="${i}"> x2 점수 문제</label>`;
 
       if (q.type === 'mc') {
@@ -135,6 +138,81 @@ function renderQuestions() {
     box.append(card);
   });
   bindEditorEvents(box);
+  fillThumbs();
+}
+
+function imgDropMarkup(q, i) {
+  if (q.image) {
+    return `<div class="imgdrop filled" data-imgslot="${i}">
+      <div class="thumb" id="thumb${i}"></div>
+      <span class="name">이미지 첨부됨 · ${q.image.w}×${q.image.h}</span>
+      <span class="tools">
+        <button class="btn btn-ghost" data-imgpick="${i}">바꾸기</button>
+        <button class="btn btn-ghost" data-imgdel="${i}">🗑️</button>
+      </span>
+      <input type="file" accept="image/*" class="hidden" data-imgfile="${i}">
+    </div>`;
+  }
+  return `<div class="imgdrop" data-imgslot="${i}" data-imgpick="${i}">
+    <span style="font-size:1.4rem">🖼</span>
+    <span>이미지를 끌어다 놓거나 눌러서 고르세요 <span class="muted">(선택)</span></span>
+    <input type="file" accept="image/*" class="hidden" data-imgfile="${i}">
+  </div>`;
+}
+
+// 썸네일은 비동기로 채운다 — 카드를 그리는 것을 막지 않는다
+async function fillThumbs() {
+  for (let i = 0; i < draft.questions.length; i++) {
+    const q = draft.questions[i];
+    const el = document.getElementById('thumb' + i);
+    if (!q.image || !el) continue;
+    const url = await getImage(draft.id, q.image.id).catch(() => null);
+    if (url && document.getElementById('thumb' + i) === el) {
+      el.innerHTML = `<img src="${url}" alt="첨부된 이미지 미리보기">`;
+    }
+  }
+}
+
+async function attachImage(i, file) {
+  const slot = document.querySelector(`[data-imgslot="${i}"]`);
+  const old = draft.questions[i].image;
+  if (slot) slot.innerHTML = '<span>이미지를 줄이는 중…</span>';
+  let prepared;
+  try {
+    prepared = await prepareImage(file);
+  } catch (err) {
+    showImgError(i, err.message);
+    return;
+  }
+  if (slot) slot.innerHTML = '<span>저장하는 중…</span>';
+  const imgId = db.newId();
+  try {
+    await db.saveQuizImage(draft.id, imgId, prepared.dataUrl);
+  } catch (err) {
+    showImgError(i, '이미지를 저장하지 못했어요. 인터넷 연결을 확인하고 다시 시도해 주세요.');
+    return;
+  }
+  cacheImage(draft.id, imgId, prepared.dataUrl);
+  draft.questions[i].image = { id: imgId, w: prepared.w, h: prepared.h };
+  renderQuestions();
+  if (old) db.deleteQuizImage(draft.id, old.id).catch(() => {});
+}
+
+function showImgError(i, message) {
+  const slot = document.querySelector(`[data-imgslot="${i}"]`);
+  if (!slot) return;
+  slot.classList.remove('filled');
+  slot.innerHTML = `<span class="err">${esc(message)}</span>
+    <span class="tools"><button class="btn btn-ghost" data-imgpick="${i}">다시 시도</button></span>
+    <input type="file" accept="image/*" class="hidden" data-imgfile="${i}">`;
+  slot.querySelector('[data-imgpick]').onclick = e => {
+    e.stopPropagation();
+    slot.querySelector('[data-imgfile]').click();
+  };
+  slot.querySelector('[data-imgfile]').onchange = e => {
+    const file = e.target.files && e.target.files[0];
+    if (file) attachImage(i, file);
+  };
 }
 
 function bindEditorEvents(box) {
@@ -155,6 +233,8 @@ function bindEditorEvents(box) {
   box.querySelectorAll('[data-del]').forEach(el => el.onclick = () => {
     const i = +el.dataset.del;
     if (!confirm(`Q${i + 1}을 삭제할까요?`)) return;
+    const gone = draft.questions[i].image;
+    if (gone) db.deleteQuizImage(draft.id, gone.id).catch(() => {});
     draft.questions.splice(i, 1);
     if (openIdx >= draft.questions.length) openIdx = draft.questions.length - 1;
     renderQuestions();
@@ -182,6 +262,37 @@ function bindEditorEvents(box) {
     const arr = e.target.value.split('\n').map(s => s.trim()).filter(Boolean);
     draft.questions[i].accepted = arr;
     draft.questions[i].answer = arr[0] || '';
+  });
+
+  // ── 이미지 첨부 ──
+  box.querySelectorAll('[data-imgpick]').forEach(el => el.onclick = e => {
+    e.stopPropagation();
+    const i = +el.dataset.imgpick;
+    box.querySelector(`[data-imgfile="${i}"]`).click();
+  });
+  box.querySelectorAll('[data-imgfile]').forEach(el => el.onchange = e => {
+    const file = e.target.files && e.target.files[0];
+    if (file) attachImage(+el.dataset.imgfile, file);
+    e.target.value = '';
+  });
+  box.querySelectorAll('[data-imgdel]').forEach(el => el.onclick = async e => {
+    e.stopPropagation();
+    const i = +el.dataset.imgdel;
+    const old = draft.questions[i].image;
+    delete draft.questions[i].image;
+    renderQuestions();
+    if (old) await db.deleteQuizImage(draft.id, old.id).catch(() => {});
+  });
+  box.querySelectorAll('[data-imgslot]').forEach(el => {
+    const i = +el.dataset.imgslot;
+    el.ondragover = e => { e.preventDefault(); el.classList.add('over'); };
+    el.ondragleave = () => el.classList.remove('over');
+    el.ondrop = e => {
+      e.preventDefault();
+      el.classList.remove('over');
+      const file = e.dataTransfer.files && e.dataTransfer.files[0];
+      if (file) attachImage(i, file);
+    };
   });
 }
 

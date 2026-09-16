@@ -250,3 +250,19 @@ body.admin .join-code{ font-size:4.4rem; }
 }
 .addrow button:hover{ border-color:var(--primary); color:var(--primary); }
 @media (max-width:640px){ .addrow{ grid-template-columns:1fr; } }
+
+/* ── 편집기 이미지 영역 ── */
+.imgdrop{
+  display:flex; align-items:center; gap:14px; padding:12px 14px;
+  background:var(--bg); border:2px dashed var(--line); border-radius:var(--r-md);
+  cursor:pointer; color:var(--ink2); font-weight:700;
+}
+.imgdrop.over{ border-color:var(--primary); color:var(--primary); background:rgba(108,76,241,.06); }
+.imgdrop.filled{ border-style:solid; cursor:default; }
+.imgdrop .thumb{
+  flex:none; width:92px; height:58px; border-radius:var(--r-sm); overflow:hidden;
+  border:1px solid var(--line); background:var(--card);
+}
+.imgdrop .thumb img{ width:100%; height:100%; object-fit:cover; display:block; }
+.imgdrop .name{ font-weight:700; color:var(--ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.imgdrop .tools{ margin-left:auto; display:flex; gap:8px; }
