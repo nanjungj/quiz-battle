@@ -4,16 +4,18 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>퀴즈 배틀</title>
+<link rel="stylesheet" as="style" crossorigin
+      href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.css">
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 <div class="wrap">
   <section id="join" class="panel">
     <h1 class="center">🖍️ 퀴즈 배틀</h1>
-    <input id="code" placeholder="방 코드 6자리" maxlength="6" style="text-transform:uppercase;text-align:center;font-size:1.6rem;letter-spacing:.2em">
+    <input id="code" placeholder="방 코드 6자리" maxlength="6">
     <input id="nick" class="mt" placeholder="닉네임" maxlength="12">
     <div class="mt center"><button class="btn" id="joinBtn">입장하기</button></div>
-    <p id="joinErr" class="hidden center" style="color:var(--danger)">방을 찾을 수 없어요.</p>
+    <p id="joinErr" class="hidden center err">방을 찾을 수 없어요.</p>
   </section>
   <section id="stage" class="panel hidden"></section>
 </div>
