@@ -4,6 +4,8 @@ import { startMusic, stopMusic, setUrgent, toggleMute, playVictory } from './mus
 
 const ADMIN_PASSWORD = 'quiz2026'; // README 2절 참고 — 원하는 값으로 변경
 
+const SHAPES = ['▲', '◆', '●', '■'];
+
 const views = ['gate', 'list', 'editor', 'host'];
 function showView(id) {
   views.forEach(v => document.getElementById(v).classList.toggle('hidden', v !== id));
@@ -28,18 +30,29 @@ async function openList() {
   box.innerHTML = quizzes.length ? '' : '<p>아직 만든 퀴즈쇼가 없어요.</p>';
   quizzes.forEach(q => {
     const row = document.createElement('div');
-    row.className = 'leader-row';
-    row.innerHTML = `<span>${esc(q.title || '(제목 없음)')} · ${(q.questions||[]).length}문항</span>`;
+    row.className = 'lrow';
+    row.innerHTML = `<span class="who">${esc(q.title || '(제목 없음)')}</span>
+      <span class="pill">${(q.questions || []).length}문항</span>`;
     const actions = document.createElement('div');
+    actions.className = 'row';
+    actions.style.marginLeft = 'auto';
     const play = mkBtn('▶ 진행', () => startHosting(q));
-    const edit = mkBtn('✏️', () => openEditor(q));
-    const del  = mkBtn('🗑', async () => { if (confirm('삭제할까요?')) { await db.deleteQuiz(q.id); openList(); } });
+    const edit = mkBtn('✏️ 편집', () => openEditor(q), true);
+    const del  = mkBtn('🗑', async () => {
+      if (confirm(`"${q.title || '(제목 없음)'}" 퀴즈쇼를 삭제할까요?`)) { await db.deleteQuiz(q.id); openList(); }
+    }, true);
     actions.append(play, edit, del);
     row.append(actions);
     box.append(row);
   });
 }
-function mkBtn(label, fn) { const b = document.createElement('button'); b.className='btn'; b.style.marginLeft='6px'; b.textContent=label; b.onclick=fn; return b; }
+function mkBtn(label, fn, ghost) {
+  const b = document.createElement('button');
+  b.className = ghost ? 'btn btn-ghost' : 'btn';
+  b.textContent = label;
+  b.onclick = fn;
+  return b;
+}
 $('#newQuizBtn').onclick = () => openEditor({ title:'', questions:[] });
 $('#backToList').onclick = openList;
 
@@ -129,13 +142,27 @@ function renderHost() {
     const players = Object.values(room.players || {});
     const dir = location.pathname.replace(/[^/]*$/, '');   // 현재 폴더 (파일명 제거)
     const joinUrl = location.origin + dir + 'index.html?room=' + roomCode;
-    host.innerHTML = `<h1 class="center">폰으로 QR을 찍어 입장하세요</h1>
-      <div class="center"><div class="qr-box"><div id="qrcode"></div></div></div>
-      <p class="center join-code">방 코드 <b>${roomCode}</b></p>
-      <p class="center join-url">${escT(joinUrl)}</p>
-      <h3 class="center mt">대기 중 (${players.length}명)</h3>
-      <div class="center">${players.map(p=>`<span class="badge-x2" style="margin:4px">${escT(p.nick)}</span>`).join('')}</div>
-      <div class="mt center"><button class="btn" id="startBtn">시작하기 ▶</button></div>`;
+    host.innerHTML = `<div class="panel" style="flex:1">
+      <div class="row">
+        <span style="font-size:1.6rem">🎯</span>
+        <span style="font-weight:900;color:var(--primary);font-size:1.6rem">퀴즈 배틀</span>
+        <span class="spacer"></span>
+        <span class="muted" style="font-weight:700">${escT(room.quizTitle || '')}</span>
+      </div>
+      <div class="row" style="gap:48px;align-items:center;flex:1;flex-wrap:nowrap">
+        <div class="qr-box"><div id="qrcode"></div></div>
+        <div class="stack" style="flex:1">
+          <div class="muted" style="font-weight:700">폰으로 QR을 찍어 입장하세요</div>
+          <div class="join-code">${roomCode}</div>
+          <div class="join-url">${escT(joinUrl)}</div>
+          <h3>입장 완료 <span style="color:var(--primary)">${players.length}명</span></h3>
+          <div class="row">${players.map(p => `<span class="pill">${escT(p.nick)}</span>`).join('')}</div>
+        </div>
+      </div>
+      <div class="row" style="justify-content:flex-end">
+        <button class="btn btn-lg" id="startBtn">시작하기 ▶</button>
+      </div>
+    </div>`;
     renderQR(joinUrl);
     document.getElementById('startBtn').onclick = () => gotoQuestion(0);
   } else if (room.state === 'question') {
@@ -175,27 +202,51 @@ async function gotoQuestion(idx) {
 function renderQuestionScreen() {
   const host = document.getElementById('host');
   const q = room.questions[room.currentQ];
-  host.innerHTML = `
-    <div class="row" style="justify-content:space-between">
-      <span>Q${room.currentQ+1}/${room.questions.length}</span>
-      ${q.double?'<span class="badge-x2">x2 점수!</span>':''}
+  host.innerHTML = `<div class="panel" style="flex:1">
+    <div class="row">
+      <span class="pill pill-primary">Q${room.currentQ + 1} / ${room.questions.length}</span>
+      ${q.double ? '<span class="pill pill-amber">x2 점수!</span>' : ''}
+      <span class="spacer"></span>
+      <span class="muted" style="font-weight:700">제출</span>
+      <strong id="submitCount" style="font-size:1.6rem;color:var(--primary);font-variant-numeric:tabular-nums">
+        ${answeredCount(room)}<span class="muted" style="font-size:1.1rem"> / ${Object.keys(room.players || {}).length}</span>
+      </strong>
+      <div class="timer-ring" id="ring">
+        <svg width="120" height="120"><circle class="bg" cx="60" cy="60" r="52" fill="none" stroke-width="12"/>
+        <circle class="fg" cx="60" cy="60" r="52" fill="none" stroke-width="12" stroke-linecap="round"
+          stroke-dasharray="${2 * Math.PI * 52}" stroke-dashoffset="0" id="fg"/></svg>
+        <div class="timer-num" id="num">20</div>
+      </div>
     </div>
-    <div class="timer-ring" id="ring">
-      <svg width="120" height="120"><circle class="bg" cx="60" cy="60" r="52" fill="none" stroke-width="12"/>
-      <circle class="fg" cx="60" cy="60" r="52" fill="none" stroke-width="12"
-        stroke-dasharray="${2*Math.PI*52}" stroke-dashoffset="0" id="fg"/></svg>
-      <div class="timer-num" id="num">20</div>
+    <div class="stack" style="flex:1;justify-content:center;gap:28px">
+      <h2 style="font-size:2.6rem">${escT(q.text)}</h2>
+      ${renderChoicesPreview(q, false)}
     </div>
-    <h2 class="center">${escT(q.text)}</h2>
-    ${renderChoicesPreview(q)}
-    <div class="mt center"><button class="btn" id="revealBtn">정답 공개 →</button></div>`;
+    <div class="row" style="justify-content:flex-end">
+      <button class="btn" id="revealBtn">정답 공개 →</button>
+    </div>
+  </div>`;
   document.getElementById('revealBtn').onclick = (e) => { e.currentTarget.disabled = true; doReveal(); };
   runTimer();
 }
-function renderChoicesPreview(q) {
-  if (q.type==='mc') return `<div class="opts mt">${q.choices.map((c,j)=>`<div class="opt c${j+1}">${escT(c)}</div>`).join('')}</div>`;
-  if (q.type==='ox') return `<div class="ox mt"><div class="ox-btn o">O</div><div class="ox-btn x">X</div></div>`;
-  return `<p class="center">단답형 — 참가자가 직접 입력</p>`;
+
+// 현재 문제에 제출한 사람 수
+function answeredCount(r) {
+  if (!r || r.currentQ == null) return 0;
+  return Object.keys(((r.answers || {})[r.currentQ]) || {}).length;
+}
+
+function renderChoicesPreview(q, stacked) {
+  if (q.type === 'mc') {
+    const cols = stacked ? '1fr' : '1fr 1fr';
+    return `<div class="opts" style="grid-template-columns:${cols}">${q.choices.map((c, j) =>
+      `<div class="choice c${j + 1}"><span class="shape">${SHAPES[j]}</span><span>${escT(c)}</span></div>`
+    ).join('')}</div>`;
+  }
+  if (q.type === 'ox') {
+    return `<div class="ox" style="flex:1"><div class="ox-btn o">O</div><div class="ox-btn x">X</div></div>`;
+  }
+  return `<div class="panel center muted" style="flex:1;justify-content:center">단답형 — 참가자가 폰에서 직접 입력합니다</div>`;
 }
 function runTimer() {
   const num = document.getElementById('num');
@@ -210,6 +261,8 @@ function runTimer() {
     if (num) num.textContent = sec;
     if (fg) fg.style.strokeDashoffset = circ * (1 - remain/ROUND_MS);
     if (ring) { ring.classList.toggle('warn', sec<=10 && sec>5); ring.classList.toggle('urgent', sec<=5); }
+    const cnt = document.getElementById('submitCount');
+    if (cnt) cnt.firstChild.nodeValue = String(answeredCount(room));
     setUrgent(sec<=5 && remain>0);   // 마지막 5초 음악 템포 가속
     if (remain<=0) { clearInterval(tick); doReveal(); }
   }, 250);
@@ -243,14 +296,30 @@ function renderReveal() {
   const q = room.questions[room.currentQ];
   const ranked = rankPlayers(room.players);
   const answerText = q.type==='mc' ? q.choices[q.answer] : (q.type==='ox' ? q.answer : (q.accepted||[q.answer]).join(' / '));
+  const correctCount = Object.values(((room.answers || {})[room.currentQ]) || {})
+    .filter(a => checkAnswer(q, a.value)).length;
   const last = room.currentQ >= room.questions.length-1;
-  host.innerHTML = `<h2 class="center">✅ 정답: ${escT(answerText)}</h2>
-    <h3>현재 순위</h3>
-    ${ranked.slice(0,10).map((r,i)=>`<div class="leader-row"><span><span class="rank">${i+1}</span>${escT(r.nick)}</span><strong>${r.score}</strong></div>`).join('')}
-    <div class="mt center">
-      ${last ? '<button class="btn" id="endBtn">최종 결과 발표 🏆</button>'
-             : '<button class="btn" id="nextBtn">다음 문제 →</button>'}
-    </div>`;
+
+  host.innerHTML = `<div class="panel" style="flex:1">
+    <div class="row" style="background:var(--mint);color:#fff;border-radius:var(--r-lg);padding:20px 26px;flex-wrap:nowrap">
+      <span style="width:52px;height:52px;border-radius:50%;background:rgba(255,255,255,.24);
+                   display:grid;place-items:center;font-size:1.6rem;font-weight:900;flex:none">✓</span>
+      <span style="font-weight:700;opacity:.9">정답</span>
+      <span style="font-size:2rem;font-weight:900">${escT(answerText)}</span>
+      <span class="spacer"></span>
+      <span style="font-weight:700;opacity:.92">${correctCount}명 맞힘</span>
+    </div>
+    <h3 class="muted">누적 순위</h3>
+    <div class="stack" style="flex:1">
+      ${ranked.slice(0, 5).map((r, i) =>
+        `<div class="lrow"><span class="n">${i + 1}</span><span class="who">${escT(r.nick)}</span>
+         <span class="s">${r.score}</span></div>`).join('')}
+    </div>
+    <div class="row" style="justify-content:flex-end">
+      ${last ? '<button class="btn btn-lg" id="endBtn">최종 결과 발표 🏆</button>'
+             : '<button class="btn btn-lg" id="nextBtn">다음 문제 →</button>'}
+    </div>
+  </div>`;
   const nb = document.getElementById('nextBtn'); if (nb) nb.onclick = () => gotoQuestion(room.currentQ+1);
   const eb = document.getElementById('endBtn'); if (eb) eb.onclick = () => db.setRoomState(roomCode, { state:'ended' });
 }

@@ -201,6 +201,9 @@ body.admin{ font-size:19px; }
 body.admin .wrap{ max-width:1180px; padding:28px 36px; }
 body.admin h1{ font-size:2.6rem; } body.admin h2{ font-size:2rem; } body.admin h3{ font-size:1.5rem; }
 body.admin .btn{ font-size:1.25rem; padding:16px 32px; }
+/* 대형 스크린 보기: 세로로 한없이 늘어나 속이 비지 않게 행 높이에 상한을 둔다.
+   폰과 달리 여기서는 탭 영역이 필요 없고, 멀리서 읽히는 글자 크기가 우선이다. */
+body.admin .opts{ align-content:center; grid-auto-rows:minmax(116px,150px); gap:16px; }
 body.admin .choice{ min-height:86px; font-size:1.6rem; padding:14px 22px; }
 body.admin .choice .shape{ width:44px; height:44px; border-radius:12px; font-size:1.1rem; }
 body.admin .ox-btn{ font-size:5rem; min-height:190px; }

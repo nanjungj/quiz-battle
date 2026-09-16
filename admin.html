@@ -15,18 +15,18 @@
 
   <!-- 암호 게이트 -->
   <section id="gate" class="panel">
-    <h1>🖍️ 퀴즈 배틀 관리자</h1>
-    <p>관리자 암호를 입력하세요.</p>
+    <h1>🎯 퀴즈 배틀 관리자</h1>
+    <p class="muted" style="margin:0">관리자 암호를 입력하세요.</p>
     <input id="pw" type="password" placeholder="암호">
-    <div class="mt"><button class="btn" id="pwBtn">입장</button></div>
+    <button class="btn" id="pwBtn">입장</button>
     <p id="pwErr" class="hidden err">암호가 틀렸어요.</p>
   </section>
 
   <!-- 퀴즈쇼 목록 -->
   <section id="list" class="panel hidden">
     <h1>내 퀴즈쇼</h1>
-    <div id="quizList"></div>
-    <div class="mt"><button class="btn" id="newQuizBtn">+ 새 퀴즈쇼 만들기</button></div>
+    <div id="quizList" class="stack"></div>
+    <button class="btn" id="newQuizBtn">＋ 새 퀴즈쇼 만들기</button>
   </section>
 
   <!-- 편집기 -->
@@ -44,7 +44,7 @@
   </section>
 
   <!-- 진행 조종석 -->
-  <section id="host" class="panel hidden"></section>
+  <section id="host" class="hidden stack" style="flex:1"></section>
 
 </div>
 <script type="module" src="js/admin.js"></script>
