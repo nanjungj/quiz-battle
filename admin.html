@@ -4,6 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>퀴즈 배틀 · 관리자</title>
+<link rel="stylesheet" as="style" crossorigin
+      href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.css">
 <link rel="stylesheet" href="css/style.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head>
@@ -13,36 +15,38 @@
 
   <!-- 암호 게이트 -->
   <section id="gate" class="panel">
-    <h1>🖍️ 퀴즈 배틀 관리자</h1>
-    <p>관리자 암호를 입력하세요.</p>
+    <h1>🎯 퀴즈 배틀 관리자</h1>
+    <p class="muted" style="margin:0">관리자 암호를 입력하세요.</p>
     <input id="pw" type="password" placeholder="암호">
-    <div class="mt"><button class="btn" id="pwBtn">입장</button></div>
-    <p id="pwErr" class="hidden" style="color:var(--danger)">암호가 틀렸어요.</p>
+    <button class="btn" id="pwBtn">입장</button>
+    <p id="pwErr" class="hidden err">암호가 틀렸어요.</p>
   </section>
 
   <!-- 퀴즈쇼 목록 -->
   <section id="list" class="panel hidden">
     <h1>내 퀴즈쇼</h1>
-    <div id="quizList"></div>
-    <div class="mt"><button class="btn" id="newQuizBtn">+ 새 퀴즈쇼 만들기</button></div>
+    <div id="quizList" class="stack"></div>
+    <button class="btn" id="newQuizBtn">＋ 새 퀴즈쇼 만들기</button>
   </section>
 
   <!-- 편집기 -->
   <section id="editor" class="panel hidden">
-    <div class="row"><button class="btn-ghost btn" id="backToList">← 목록</button></div>
-    <h2>퀴즈쇼 편집</h2>
-    <input id="quizTitle" placeholder="퀴즈쇼 제목">
-    <div id="questions" class="mt"></div>
-    <div class="mt row">
-      <button class="btn" id="addMc">+객관식</button>
-      <button class="btn" id="addOx">+O/X</button>
-      <button class="btn" id="addShort">+단답형</button>
+    <div class="row">
+      <button class="btn btn-ghost" id="backToList">← 목록</button>
+      <h2 class="spacer">퀴즈쇼 편집</h2>
+      <button class="btn" id="saveQuiz">저장</button>
     </div>
-    <div class="mt"><button class="btn" id="saveQuiz">💾 저장</button></div>
+    <input id="quizTitle" placeholder="퀴즈쇼 제목">
+    <div id="questions" class="stack"></div>
+    <div class="addrow">
+      <button id="addMc">＋ 객관식</button>
+      <button id="addOx">＋ O / X</button>
+      <button id="addShort">＋ 단답형</button>
+    </div>
   </section>
 
   <!-- 진행 조종석 -->
-  <section id="host" class="panel hidden"></section>
+  <section id="host" class="hidden stack" style="flex:1"></section>
 
 </div>
 <script type="module" src="js/admin.js"></script>

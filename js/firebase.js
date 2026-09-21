@@ -37,6 +37,7 @@ export async function getQuiz(id) {
 }
 export async function deleteQuiz(id) {
   await set(ref(db, 'quizzes/' + id), null);
+  await deleteQuizImages(id);
 }
 
 export async function createRoom(quiz) {
@@ -84,4 +85,29 @@ export async function serverNow() {
       resolve(Date.now() + (snap.val() || 0));
     }, { onlyOnce: true });
   });
+}
+
+// 쓰기 없이 새 id만 발급한다 — 저장 전에 이미지를 넣을 경로가 필요할 때 쓴다
+export function newId() {
+  return push(ref(db, 'quizzes')).key;
+}
+
+// ── 문제 이미지 ──
+// 이미지는 quizImages/ 에 따로 둔다. rooms/ 안에 절대 넣지 말 것 —
+// 방은 참가자 전원이 구독 중이라 점수가 바뀔 때마다 이미지까지 전부 재전송된다.
+export async function saveQuizImage(quizId, imgId, dataUrl) {
+  await set(ref(db, `quizImages/${quizId}/${imgId}`), dataUrl);
+}
+export async function loadQuizImage(quizId, imgId) {
+  return (await get(ref(db, `quizImages/${quizId}/${imgId}`))).val();
+}
+export async function deleteQuizImage(quizId, imgId) {
+  await set(ref(db, `quizImages/${quizId}/${imgId}`), null);
+}
+export async function deleteQuizImages(quizId) {
+  await set(ref(db, `quizImages/${quizId}`), null);
+}
+
+export async function getRoom(code) {
+  return (await get(ref(db, 'rooms/' + code))).val();
 }

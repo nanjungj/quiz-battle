@@ -1,7 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  ROUND_MS, generateRoomCode, normalize, checkAnswer, calcScore, rankPlayers
+  ROUND_MS, generateRoomCode, normalize, checkAnswer, calcScore, rankPlayers,
+  rankQuestion, summarize
 } from '../js/logic.js';
 
 test('generateRoomCode: 6자, 허용 문자만, 혼동문자 없음', () => {
@@ -57,4 +58,100 @@ test('rankPlayers: 점수 내림차순, 동점은 nick 오름차순', () => {
   const ranked = rankPlayers(players);
   assert.deepEqual(ranked.map(r => r.nick), ['가가', '다다', '나나']);
   assert.deepEqual(ranked.map(r => r.id), ['p2', 'p3', 'p1']);
+});
+
+test('rankQuestion: 정답자만, 빨리 맞힌 순', () => {
+  const q = { type: 'mc', choices: ['a','b','c','d'], answer: 1, double: false };
+  const players = { p1:{nick:'가가'}, p2:{nick:'나나'}, p3:{nick:'다다'} };
+  const answers = {
+    p1: { value: 1, answeredAt: 1000 + 5000 },   // 정답, 5.0초
+    p2: { value: 1, answeredAt: 1000 + 2000 },   // 정답, 2.0초
+    p3: { value: 3, answeredAt: 1000 + 1000 },   // 오답 — 제외
+  };
+  const ranked = rankQuestion(q, answers, players, 1000);
+  assert.deepEqual(ranked.map(r => r.nick), ['나나', '가가']);
+  assert.deepEqual(ranked.map(r => r.elapsedMs), [2000, 5000]);
+});
+
+test('rankQuestion: 제한시간을 넘긴 답은 제외', () => {
+  const q = { type: 'ox', answer: 'O', double: false };
+  const players = { p1:{nick:'가가'}, p2:{nick:'나나'} };
+  const answers = {
+    p1: { value: 'O', answeredAt: 1000 + ROUND_MS },      // 딱 20초 — 남은 시간 0 → 제외
+    p2: { value: 'O', answeredAt: 1000 + ROUND_MS - 1 },  // 아슬아슬하게 통과
+  };
+  const ranked = rankQuestion(q, answers, players, 1000);
+  assert.deepEqual(ranked.map(r => r.nick), ['나나']);
+});
+
+test('rankQuestion: gained는 calcScore와 일치하고 x2가 반영된다', () => {
+  const q = { type: 'mc', choices: ['a','b'], answer: 0, double: true };
+  const players = { p1:{nick:'가가'} };
+  const answers = { p1: { value: 0, answeredAt: 1000 } };  // 0초 경과 = 남은시간 만점
+  const ranked = rankQuestion(q, answers, players, 1000);
+  assert.equal(ranked[0].gained, calcScore(true, ROUND_MS, true)); // 400
+});
+
+test('rankQuestion: 같은 시간이면 nick 오름차순, 빈 응답은 빈 배열', () => {
+  const q = { type: 'ox', answer: 'O', double: false };
+  const players = { p1:{nick:'나나'}, p2:{nick:'가가'} };
+  const answers = {
+    p1: { value: 'O', answeredAt: 3000 },
+    p2: { value: 'O', answeredAt: 3000 },
+  };
+  assert.deepEqual(rankQuestion(q, answers, players, 1000).map(r => r.nick), ['가가', '나나']);
+  assert.deepEqual(rankQuestion(q, {}, players, 1000), []);
+  assert.deepEqual(rankQuestion(q, null, players, 1000), []);
+});
+
+test('rankQuestion: 방을 나간(players에 없는) 응답은 무시', () => {
+  const q = { type: 'ox', answer: 'O', double: false };
+  const players = { p1: { nick: '가가' } };
+  const answers = {
+    p1: { value: 'O', answeredAt: 2000 },
+    ghost: { value: 'O', answeredAt: 1500 },
+  };
+  assert.deepEqual(rankQuestion(q, answers, players, 1000).map(r => r.id), ['p1']);
+});
+
+test('summarize: 참가자별 맞힌 개수와 제출 개수', () => {
+  const questions = [
+    { type:'mc', choices:['a','b'], answer:0 },
+    { type:'ox', answer:'O' },
+  ];
+  const players = { p1:{nick:'가가'}, p2:{nick:'나나'}, p3:{nick:'다다'} };
+  const answers = {
+    0: { p1:{value:0,answeredAt:2000}, p2:{value:1,answeredAt:2000} },
+    1: { p1:{value:'O',answeredAt:2000} },
+  };
+  const s = summarize(questions, answers, players, 1000);
+  assert.deepEqual(s.p1, { correct: 2, answered: 2 });
+  assert.deepEqual(s.p2, { correct: 0, answered: 1 });
+  assert.deepEqual(s.p3, { correct: 0, answered: 0 });  // 한 번도 안 낸 사람도 들어간다
+});
+
+test('summarize: 제한시간을 넘긴 정답은 맞힌 것으로 세지 않는다', () => {
+  const questions = [{ type:'ox', answer:'O' }];
+  const players = { p1:{nick:'가가'} };
+  const answers = { 0: { p1:{ value:'O', answeredAt: 1000 + ROUND_MS + 500 } } };
+  const s = summarize(questions, answers, players, 1000);
+  assert.deepEqual(s.p1, { correct: 0, answered: 1 });
+});
+
+test('summarize: startedAt 없이(0) 부르면 시간 검사 없이 정답만 센다', () => {
+  // 최종 집계에서 쓰는 방식. 방에는 마지막 문제의 startedAt만 남아 있어
+  // 과거 문제의 경과 시간을 계산할 수 없다.
+  const questions = [
+    { type:'mc', choices:['a','b'], answer:1 },
+    { type:'ox', answer:'O' },
+  ];
+  const players = { p1:{nick:'가가'}, p2:{nick:'나나'} };
+  // answeredAt은 실제 epoch 시각 — startedAt 없이 빼면 엄청난 값이 된다
+  const answers = {
+    0: { p1:{ value:1, answeredAt: 1789000000000 }, p2:{ value:0, answeredAt: 1789000000000 } },
+    1: { p1:{ value:'O', answeredAt: 1789000030000 } },
+  };
+  assert.deepEqual(summarize(questions, answers, players, 0).p1,  { correct: 2, answered: 2 });
+  assert.deepEqual(summarize(questions, answers, players, 0).p2,  { correct: 0, answered: 1 });
+  assert.deepEqual(summarize(questions, answers, players).p1,     { correct: 2, answered: 2 });
 });
