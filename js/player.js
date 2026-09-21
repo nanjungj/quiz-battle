@@ -1,5 +1,5 @@
 import * as db from './firebase.js';
-import { ROUND_MS, rankPlayers, checkAnswer } from './logic.js';
+import { ROUND_MS, rankPlayers, checkAnswer, rankQuestion } from './logic.js';
 
 import { getImage, prefetchImage } from './image.js';
 
@@ -194,10 +194,16 @@ function renderResult(s) {
                    : q.type === 'ox' ? q.answer
                    : (q.accepted || [q.answer]).join(' / ');
 
+  const qRanked = rankQuestion(q, (room.answers || {})[idx], room.players, room.startedAt);
+  const qRank = qRanked.findIndex(r => r.id === playerId) + 1;
+  const gained = (qRanked.find(r => r.id === playerId) || {}).gained || 0;
+
   s.innerHTML = `<div class="feedback ${correct ? 'ok' : 'no'}">
     <div class="mark">${correct ? '✓' : '✗'}</div>
     <div style="font-size:1.8rem;font-weight:900">${correct ? '정답!' : '아쉬워요'}</div>
-    ${correct ? '' : `<div style="font-weight:700">정답은 <b>${escT(answerText)}</b></div>`}
+    ${correct ? `<div class="big">+${gained}</div>`
+              : `<div style="font-weight:700">정답은 <b>${escT(answerText)}</b></div>`}
+    ${qRank ? `<span class="pill" style="font-weight:900">⚡ 이번 문제 ${qRank}번째로 맞힘</span>` : ''}
     <span class="pill">누적 ${myRank}위 · ${me.score || 0}점</span>
     <div style="color:rgba(255,255,255,.85)">다음 문제를 기다려 주세요</div>
   </div>`;

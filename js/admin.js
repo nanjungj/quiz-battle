@@ -1,5 +1,5 @@
 import * as db from './firebase.js';
-import { checkAnswer, calcScore, rankPlayers, ROUND_MS } from './logic.js';
+import { checkAnswer, calcScore, rankPlayers, rankQuestion, ROUND_MS } from './logic.js';
 import { startMusic, stopMusic, setUrgent, toggleMute, playVictory } from './music.js';
 import { prepareImage, getImage, prefetchImage, cacheImage } from './image.js';
 
@@ -529,6 +529,7 @@ function renderReveal() {
   const answerText = q.type==='mc' ? q.choices[q.answer] : (q.type==='ox' ? q.answer : (q.accepted||[q.answer]).join(' / '));
   const correctCount = Object.values(((room.answers || {})[room.currentQ]) || {})
     .filter(a => checkAnswer(q, a.value)).length;
+  const qRanked = rankQuestion(q, (room.answers || {})[room.currentQ], room.players, room.startedAt);
   const last = room.currentQ >= room.questions.length-1;
 
   host.innerHTML = `<div class="panel" style="flex:1">
@@ -540,11 +541,21 @@ function renderReveal() {
       <span class="spacer"></span>
       <span style="font-weight:700;opacity:.92">${correctCount}명 맞힘</span>
     </div>
-    <h3 class="muted">누적 순위</h3>
-    <div class="stack" style="flex:1">
-      ${ranked.slice(0, 5).map((r, i) =>
-        `<div class="lrow"><span class="n">${i + 1}</span><span class="who">${escT(r.nick)}</span>
-         <span class="s">${r.score}</span></div>`).join('')}
+    <div class="row" style="gap:28px;align-items:stretch;flex:1;flex-wrap:nowrap">
+      <div class="stack" style="flex:1;min-width:0">
+        <h3 style="color:var(--primary)">⚡ 이번 문제 빨리 맞힌 순</h3>
+        ${qRanked.length ? qRanked.slice(0, 5).map((r, i) =>
+          `<div class="lrow${i === 0 ? ' me' : ''}"><span class="n">${i + 1}</span>
+           <span class="who">${escT(r.nick)}</span>
+           <span class="s">${(r.elapsedMs / 1000).toFixed(1)}초</span></div>`).join('')
+        : '<p class="muted">이번 문제는 맞힌 사람이 없어요.</p>'}
+      </div>
+      <div class="stack" style="flex:1;min-width:0">
+        <h3 class="muted">누적 순위</h3>
+        ${ranked.slice(0, 5).map((r, i) =>
+          `<div class="lrow"><span class="n">${i + 1}</span><span class="who">${escT(r.nick)}</span>
+           <span class="s">${r.score}</span></div>`).join('')}
+      </div>
     </div>
     <div class="row" style="justify-content:flex-end">
       ${last ? '<button class="btn btn-lg" id="endBtn">최종 결과 발표 🏆</button>'
