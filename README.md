@@ -8,35 +8,77 @@
 2. 빌드 > Realtime Database 만들기 (위치 선택, "테스트 모드"로 시작)
 3. 프로젝트 설정 > 내 앱 > 웹 앱 추가 → firebaseConfig 값 복사
 4. `js/firebase.js` 상단 `firebaseConfig`를 복사한 값으로 교체
-   - `databaseURL`은 `https://<프로젝트>-default-rtdb.firebaseio.com` 형식
-5. Realtime Database > 규칙에 아래 임시 규칙 적용(내부/워크숍용):
+5. Realtime Database > 규칙에 아래 규칙 적용(내부/워크숍용):
 
     {
-      "rules": { ".read": true, ".write": true }
+      "rules": {
+        "quizzes":    { ".read": true, ".write": true },
+        "quizImages": { ".read": true, ".write": true },
+        "rooms":      { ".read": true, ".write": true }
+      }
     }
 
-   (공개 배포 시 보안 규칙 강화 권장 — 아래 6절 참고)
+   **`quizImages`를 빠뜨리면 문제 이미지 저장이 `permission_denied`로 막힙니다.**
+   (한 프로젝트를 여러 앱이 나눠 쓴다면 다른 앱의 경로는 지우지 말고 그대로 두세요.)
+   공개 배포 시 보안 규칙 강화 권장 — 아래 8절 참고.
 
 ## 2. 관리자 암호
-`js/admin.js`의 `ADMIN_PASSWORD` 상수를 원하는 값으로 변경.
+`js/config.js`의 `ADMIN_PASSWORD` 상수를 원하는 값으로 변경.
+`admin.html`(진행)과 `results.html`(전체 순위)이 함께 씁니다.
 
 ## 3. 로컬 실행
 정적 파일이라 브라우저로 열면 되지만, ES Module CORS 때문에 로컬 서버 권장:
 `npx serve .`  또는  `python -m http.server 8000`
 
-## 4. 테스트
-`node --test`  (순수 로직 검증)
+> **로컬 테스트 주의** — `npx serve`는 `/index.html?room=코드` 주소를 `/index`로
+> 리다이렉트하면서 `?room=` 부분을 버립니다. QR 자동 입력을 로컬에서 시험하려면
+> `/?room=코드` 형식을 쓰세요. GitHub Pages에서는 그대로 동작합니다.
+>
+> 폰으로 QR을 찍어 시험하려면 `localhost`가 아니라 PC의 내부 IP로 관리자 화면을
+> 여세요(예: `http://192.168.0.10:4321/admin.html`). QR에 그 주소가 담깁니다.
 
-## 5. 배포 (GitHub Pages)
+## 4. 결과 화면 구성
+| 보는 사람 | 화면 | 내용 |
+|---|---|---|
+| 모두 (프로젝터) | `admin.html` 최종 | 1·2·3등 시상대만 |
+| 강사 | `results.html` (새 창) | 전체 순위 + 맞힌 개수 + CSV |
+| 교육생 각자 | `index.html` 최종 | 내 등수 / 점수 / 맞힌 개수 |
+
+강사 노트북과 프로젝터를 **확장 디스플레이**로 쓰세요. 미러링 상태면
+전체 순위 창도 프로젝터에 그대로 보입니다.
+
+## 5. 순위 기준
+- **문제별 순위** — 그 문제를 **빨리 맞힌 순**(정답 + 제한시간 내). 오답자는 빠집니다.
+- 점수는 `100 + 속도보너스(최대 100)`, x2 문제는 2배. 같은 문제 안에서는
+  "빨리 맞힌 순 = 점수 많이 받은 순"이 항상 일치합니다.
+- **최종 순위** — 누적 총점. 동점은 닉네임 가나다순.
+
+## 6. 테스트
+`node --test`  (순수 로직 검증 16개)
+
+## 7. 문제 이미지
+편집기의 문항 카드에 이미지를 끌어다 놓으면 브라우저에서 줄여(긴 변 1280px, JPEG)
+Realtime Database의 `quizImages/` 경로에 저장합니다. Firebase Storage는
+결제 계정(Blaze)을 요구하므로 쓰지 않습니다.
+
+- 한 장당 400KB를 넘지 않게 자동으로 압축합니다. 못 맞추면 더 단순한 이미지를 요청합니다.
+- 이미지는 **방(`rooms/`) 안에 넣지 않습니다.** 방은 참가자 전원이 실시간 구독 중이라
+  점수가 바뀔 때마다 이미지까지 다시 내려가게 됩니다. 이 구조를 바꾸지 마세요.
+- 무료 요금제 한도는 저장 1GB / 월 전송 10GB입니다. 워크숍 1회(24명 × 10문항)가
+  약 50MB이니 여유가 있지만, 자주 쓰신다면 Firebase 콘솔 >
+  Realtime Database > 사용량에서 한 번씩 확인하세요.
+
+## 8. 배포 (GitHub Pages)
 1. GitHub에 저장소 생성 후 푸시
-2. Settings > Pages > Source: main 브랜치 / root
-3. 발급된 URL의 `/index.html`(참가자), `/admin.html`(관리자) 사용
+2. Settings > Pages > Source: master 브랜치 / root
+3. 발급된 URL의 `/index.html`(참가자), `/admin.html`(관리자·대형 스크린),
+   `/results.html`(강사용 전체 순위) 사용
 
-## 6. (선택) 보안 규칙 강화
+## 9. (선택) 보안 규칙 강화
 워크숍 종료 후에는 quizzes 쓰기를 잠그는 등 규칙을 조정하세요.
 
 ### 신뢰 경계 안내
-`.read/.write: true`인 개방 규칙을 그대로 사용하면 참가자 점수와 답안 제출 시각은
+개방 규칙을 그대로 사용하면 참가자 점수와 답안 제출 시각은
 전적으로 클라이언트를 신뢰하는 구조이며 위조가 가능합니다 — 예를 들어 능숙한
 사용자가 브라우저 개발자 도구로 자신의 점수 값을 직접 조작할 수 있습니다.
 따라서 이 앱은 친목/워크숍용으로만 사용하시고, 경쟁적인 용도로 쓰려면 Realtime
