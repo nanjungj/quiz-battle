@@ -1,5 +1,5 @@
 import * as db from './firebase.js';
-import { ROUND_MS, rankPlayers, checkAnswer, rankQuestion } from './logic.js';
+import { ROUND_MS, rankPlayers, checkAnswer, rankQuestion, summarize } from './logic.js';
 
 import { getImage, prefetchImage } from './image.js';
 
@@ -214,6 +214,8 @@ function renderFinal(s) {
   const myRank = ranked.findIndex(r => r.id === playerId) + 1;
   const me = (room.players || {})[playerId] || {};
   const medal = myRank === 1 ? '🥇' : myRank === 2 ? '🥈' : myRank === 3 ? '🥉' : '🎉';
+  const stats = summarize(room.questions || [], room.answers || {}, room.players || {}, 0);
+  const mine = stats[playerId] || { correct: 0 };
   s.innerHTML = `<div class="stack" style="flex:1;justify-content:center">
     <p class="center muted" style="margin:0;font-weight:700">내 최종 결과</p>
     <div class="result-card">
@@ -224,6 +226,7 @@ function renderFinal(s) {
       <div style="font-size:1.3rem;font-weight:900">${escT(me.nick)}</div>
       <div class="row" style="justify-content:center;margin-top:12px">
         <span class="pill">${me.score || 0}점</span>
+        <span class="pill">${mine.correct} / ${room.questions.length} 정답</span>
       </div>
     </div>
     <p class="center muted" style="margin:0">수고하셨어요!</p>

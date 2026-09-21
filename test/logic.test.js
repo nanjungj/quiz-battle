@@ -137,3 +137,21 @@ test('summarize: 제한시간을 넘긴 정답은 맞힌 것으로 세지 않는
   const s = summarize(questions, answers, players, 1000);
   assert.deepEqual(s.p1, { correct: 0, answered: 1 });
 });
+
+test('summarize: startedAt 없이(0) 부르면 시간 검사 없이 정답만 센다', () => {
+  // 최종 집계에서 쓰는 방식. 방에는 마지막 문제의 startedAt만 남아 있어
+  // 과거 문제의 경과 시간을 계산할 수 없다.
+  const questions = [
+    { type:'mc', choices:['a','b'], answer:1 },
+    { type:'ox', answer:'O' },
+  ];
+  const players = { p1:{nick:'가가'}, p2:{nick:'나나'} };
+  // answeredAt은 실제 epoch 시각 — startedAt 없이 빼면 엄청난 값이 된다
+  const answers = {
+    0: { p1:{ value:1, answeredAt: 1789000000000 }, p2:{ value:0, answeredAt: 1789000000000 } },
+    1: { p1:{ value:'O', answeredAt: 1789000030000 } },
+  };
+  assert.deepEqual(summarize(questions, answers, players, 0).p1,  { correct: 2, answered: 2 });
+  assert.deepEqual(summarize(questions, answers, players, 0).p2,  { correct: 0, answered: 1 });
+  assert.deepEqual(summarize(questions, answers, players).p1,     { correct: 2, answered: 2 });
+});

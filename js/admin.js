@@ -2,8 +2,7 @@ import * as db from './firebase.js';
 import { checkAnswer, calcScore, rankPlayers, rankQuestion, ROUND_MS } from './logic.js';
 import { startMusic, stopMusic, setUrgent, toggleMute, playVictory } from './music.js';
 import { prepareImage, getImage, prefetchImage, cacheImage } from './image.js';
-
-const ADMIN_PASSWORD = 'quiz2026'; // README 2절 참고 — 원하는 값으로 변경
+import { ADMIN_PASSWORD } from './config.js';   // README 2절 참고 — 암호는 js/config.js에서 바꾼다
 
 const SHAPES = ['▲', '◆', '●', '■'];
 
@@ -571,16 +570,32 @@ function renderEnded() {
   stopMusic();
   if (!victoryDone) { victoryDone = true; playVictory(); }   // 승리 팡파레 1회
   const ranked = rankPlayers(room.players);
-  const [p1,p2,p3] = ranked;
-  host.innerHTML = `<h1 class="center">🏆 최종 결과</h1>
-    <div class="podium">
-      <div class="col p2"><div>🥈 ${p2?escT(p2.nick):'-'}</div><div class="bar">${p2?p2.score:''}</div></div>
-      <div class="col p1"><div>🥇 ${p1?escT(p1.nick):'-'}</div><div class="bar">${p1?p1.score:''}</div></div>
-      <div class="col p3"><div>🥉 ${p3?escT(p3.nick):'-'}</div><div class="bar">${p3?p3.score:''}</div></div>
+  const [p1, p2, p3] = ranked;
+  const col = (p, cls, medal, num) => `<div class="col ${cls}">
+    <div style="font-size:2.2rem">${medal}</div>
+    <div class="who">${p ? escT(p.nick) : '-'}</div>
+    <div class="pts">${p ? p.score + '점' : ''}</div>
+    <div class="bar">${num}</div>
+  </div>`;
+
+  // 4위 이하는 이 화면에 나오지 않는다 — 전체 순위는 강사만 results.html에서 본다
+  host.innerHTML = `<div class="panel" style="flex:1;background:linear-gradient(170deg,#6C4CF1,#5335D4 62%,#4527BC);
+                                              color:#fff;border:none">
+    <div class="center">
+      <div style="font-weight:700;letter-spacing:.2em;opacity:.7">FINAL RESULT</div>
+      <h1 style="font-size:3rem">🏆 최종 결과</h1>
     </div>
-    <h3>전체 순위</h3>
-    ${ranked.map((r,i)=>`<div class="leader-row"><span><span class="rank">${i+1}</span>${escT(r.nick)}</span><strong>${r.score}</strong></div>`).join('')}
-    <div class="mt center"><button class="btn" id="homeBtn">목록으로</button></div>`;
+    <div class="podium" style="flex:1;padding:0 40px">
+      ${col(p2, 'p2', '🥈', 2)}${col(p1, 'p1', '👑', 1)}${col(p3, 'p3', '🥉', 3)}
+    </div>
+    <div class="row" style="justify-content:space-between">
+      <button class="btn btn-ghost" id="homeBtn">목록으로</button>
+      <button class="btn" id="fullBtn">전체 순위 보기 (강사용)</button>
+    </div>
+  </div>`;
   document.getElementById('homeBtn').onclick = () => { if (unsub) unsub(); openList(); };
+  document.getElementById('fullBtn').onclick = () => {
+    window.open('results.html?room=' + roomCode, 'quizResults', 'width=900,height=800');
+  };
 }
 function escT(s){ return String(s??'').replace(/</g,'&lt;'); }

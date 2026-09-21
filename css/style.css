@@ -134,9 +134,10 @@ input[type=checkbox],input[type=radio]{ width:auto; padding:0; }
   margin-top:12px; border-radius:var(--r-md) var(--r-md) 0 0;
   display:grid; place-items:center; font-size:3rem; font-weight:900;
 }
-.podium .p1 .bar{ height:220px; background:linear-gradient(180deg,var(--amber),#E08A00); color:#3D2A00; font-size:4.5rem; }
-.podium .p2 .bar{ height:150px; background:rgba(255,255,255,.2); color:#fff; }
-.podium .p3 .bar{ height:110px; background:rgba(255,255,255,.14); color:#fff; }
+/* 화면 높이에 맞춰 늘어난다 — 빔프로젝터(720p)부터 큰 모니터까지 위가 비지 않게 */
+.podium .p1 .bar{ height:clamp(180px,34vh,360px); background:linear-gradient(180deg,var(--amber),#E08A00); color:#3D2A00; font-size:4.5rem; }
+.podium .p2 .bar{ height:clamp(120px,24vh,250px); background:rgba(255,255,255,.2); color:#fff; }
+.podium .p3 .bar{ height:clamp(90px,18vh,190px); background:rgba(255,255,255,.14); color:#fff; }
 
 /* ── 배지 ── */
 .pill{

@@ -64,9 +64,14 @@ export function rankQuestion(question, answersForQ, players, startedAt) {
     .sort((a, b) => a.elapsedMs - b.elapsedMs || (a.nick || '').localeCompare(b.nick || ''));
 }
 
-// 참가자별 맞힌 개수 / 제출 개수. 맞힌 개수는 점수를 얻은 답만 센다
-// (제한시간을 넘겨 도착한 정답은 점수가 0이므로 맞힌 것으로 세지 않는다).
+// 참가자별 맞힌 개수 / 제출 개수.
+//
+// startedAt을 주면 제한시간 안에 들어온 정답만 센다(그 문제의 시작 시각을 알 때).
+// startedAt을 생략하거나 0을 주면 시간 검사 없이 정답 여부만 센다 — 최종 집계에서 쓴다.
+// 방에는 마지막 문제의 startedAt 하나만 남아 과거 문제의 경과 시간을 알 수 없기 때문이다.
+// (참가자 화면이 20초에 입력을 막으므로 실제로 늦은 답은 시계 오차 수준에서만 생긴다.)
 export function summarize(questions, answers, players, startedAt) {
+  const checkTime = Number(startedAt) > 0;
   const out = {};
   Object.keys(players || {}).forEach(id => { out[id] = { correct: 0, answered: 0 }; });
   (questions || []).forEach((q, i) => {
@@ -74,8 +79,10 @@ export function summarize(questions, answers, players, startedAt) {
     Object.entries(forQ).forEach(([id, a]) => {
       if (!out[id]) return;
       out[id].answered++;
-      const elapsedMs = Math.max(0, (a.answeredAt || 0) - (startedAt || 0));
-      if (checkAnswer(q, a.value) && ROUND_MS - elapsedMs > 0) out[id].correct++;
+      if (!checkAnswer(q, a.value)) return;
+      if (!checkTime) { out[id].correct++; return; }
+      const elapsedMs = Math.max(0, (a.answeredAt || 0) - startedAt);
+      if (ROUND_MS - elapsedMs > 0) out[id].correct++;
     });
   });
   return out;
