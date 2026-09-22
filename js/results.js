@@ -3,30 +3,31 @@ import { rankPlayers, summarize, checkAnswer } from './logic.js';
 import { ADMIN_PASSWORD } from './config.js';
 
 const $ = s => document.querySelector(s);
-const preRoom = (new URLSearchParams(location.search).get('room') || '').trim().toUpperCase();
-if (preRoom) $('#roomIn').value = preRoom;
-$('#pw').focus();
+// 주소 하나를 쓰므로 ?results=CODE 로 들어온다 (?room= 은 교육생 입장용)
+const preRoom = (new URLSearchParams(location.search).get('results') || '').trim().toUpperCase();
+if (preRoom) $('#rRoom').value = preRoom;
+$('#rPw').focus();
 
-$('#pwBtn').onclick = open;
-$('#pw').addEventListener('keydown', e => { if (e.key === 'Enter') open(); });
-$('#roomIn').addEventListener('keydown', e => { if (e.key === 'Enter') open(); });
+$('#rBtn').onclick = open;
+$('#rPw').addEventListener('keydown', e => { if (e.key === 'Enter') open(); });
+$('#rRoom').addEventListener('keydown', e => { if (e.key === 'Enter') open(); });
 
 async function open() {
-  const err = $('#gateErr');
+  const err = $('#rErr');
   err.classList.add('hidden');
-  if ($('#pw').value !== ADMIN_PASSWORD) {
+  if ($('#rPw').value !== ADMIN_PASSWORD) {
     err.textContent = '암호가 틀렸어요.';
     err.classList.remove('hidden');
     return;
   }
-  const code = $('#roomIn').value.trim().toUpperCase();
+  const code = $('#rRoom').value.trim().toUpperCase();
   const room = await db.getRoom(code);
   if (!room) {
     err.textContent = '결과를 찾을 수 없어요. 방 코드를 다시 확인해 주세요.';
     err.classList.remove('hidden');
     return;
   }
-  $('#gate').classList.add('hidden');
+  $('#rGate').classList.add('hidden');
   $('#board').classList.remove('hidden');
   render(code, room);
 }

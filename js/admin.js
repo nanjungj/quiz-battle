@@ -595,7 +595,8 @@ function renderEnded() {
   </div>`;
   document.getElementById('homeBtn').onclick = () => { if (unsub) unsub(); openList(); };
   document.getElementById('fullBtn').onclick = () => {
-    window.open('results.html?room=' + roomCode, 'quizResults', 'width=900,height=800');
+    // 주소는 하나만 쓴다 — 같은 페이지를 전체 순위 모드로 새 창에 연다
+    window.open('./?results=' + roomCode, 'quizResults', 'width=900,height=800');
   };
 }
 function escT(s){ return String(s??'').replace(/</g,'&lt;'); }

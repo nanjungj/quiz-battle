@@ -7,9 +7,18 @@
 <link rel="stylesheet" as="style" crossorigin
       href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.css">
 <link rel="stylesheet" href="css/style.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head>
 <body>
+<!-- 주소는 하나만 씁니다. 들어온 경로에 따라 보이는 화면이 달라집니다:
+     /?room=CODE  → 교육생 입장 (QR로 들어온 경우, 코드 자동 입력)
+     /            → 교육생 입장 + 구석에 '강사용'
+     /?results=CODE → 강사 전용 전체 순위 (시상대 화면의 버튼이 새 창으로 엽니다) -->
+
+<button id="muteBtn" class="mute-btn hidden" title="배경음악 켜기/끄기">🔊</button>
 <div class="wrap">
+
+  <!-- ══ 교육생 ══ -->
   <section id="join" class="panel">
     <div class="center stack">
       <div style="font-size:2.6rem;line-height:1">🎯</div>
@@ -20,9 +29,57 @@
     <input id="nick" placeholder="닉네임" maxlength="12">
     <button class="btn btn-lg" id="joinBtn">입장하기</button>
     <p id="joinErr" class="hidden center err">방을 찾을 수 없어요. 코드를 다시 확인해 주세요.</p>
+    <div class="center"><button class="host-link" id="hostLink">강사용 →</button></div>
   </section>
+
   <section id="stage" class="hidden stack" style="flex:1"></section>
+
+  <!-- ══ 강사 ══ -->
+  <section id="gate" class="panel hidden">
+    <h1>🎯 퀴즈 배틀 관리자</h1>
+    <p class="muted" style="margin:0">관리자 암호를 입력하세요.</p>
+    <input id="pw" type="password" placeholder="암호">
+    <button class="btn" id="pwBtn">입장</button>
+    <p id="pwErr" class="hidden err">암호가 틀렸어요.</p>
+    <div class="center"><button class="host-link" id="backToJoin">← 교육생 화면으로</button></div>
+  </section>
+
+  <section id="list" class="panel hidden">
+    <h1>내 퀴즈쇼</h1>
+    <div id="quizList" class="stack"></div>
+    <button class="btn" id="newQuizBtn">＋ 새 퀴즈쇼 만들기</button>
+  </section>
+
+  <section id="editor" class="panel hidden">
+    <div class="row">
+      <button class="btn btn-ghost" id="backToList">← 목록</button>
+      <h2 class="spacer">퀴즈쇼 편집</h2>
+      <button class="btn" id="saveQuiz">저장</button>
+    </div>
+    <input id="quizTitle" placeholder="퀴즈쇼 제목">
+    <div id="questions" class="stack"></div>
+    <div class="addrow">
+      <button id="addMc">＋ 객관식</button>
+      <button id="addOx">＋ O / X</button>
+      <button id="addShort">＋ 단답형</button>
+    </div>
+  </section>
+
+  <section id="host" class="hidden stack" style="flex:1"></section>
+
+  <!-- ══ 강사 전용 전체 순위 (새 창) ══ -->
+  <section id="rGate" class="panel hidden">
+    <h1>전체 순위</h1>
+    <p class="muted" style="margin:0">강사용 화면입니다. 관리자 암호를 입력하세요.</p>
+    <input id="rPw" type="password" placeholder="암호">
+    <input id="rRoom" placeholder="방 코드 6자리" maxlength="6">
+    <button class="btn" id="rBtn">결과 보기</button>
+    <p id="rErr" class="hidden err"></p>
+  </section>
+
+  <section id="board" class="hidden stack" style="flex:1"></section>
+
 </div>
-<script type="module" src="js/player.js"></script>
+<script type="module" src="js/main.js"></script>
 </body>
 </html>

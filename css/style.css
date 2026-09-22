@@ -275,3 +275,11 @@ body.admin .join-code{ font-size:4.4rem; }
 /* 이미지가 있는 문제는 보기를 한 단계 컴팩트하게 (폰에서 이미지+보기가 한 화면에 들어가야 한다) */
 .opts.tight .choice{ min-height:52px; padding:8px 12px; gap:10px; font-size:.95rem; }
 .opts.tight .choice .shape{ width:26px; height:26px; border-radius:8px; font-size:.75rem; }
+
+/* ── 강사용 전환 링크 (교육생 화면 구석) ── */
+.host-link{
+  font:inherit; font-size:.85rem; font-weight:700; color:var(--ink2);
+  background:transparent; border:none; cursor:pointer; padding:8px 10px;
+  border-radius:var(--r-sm); opacity:.7;
+}
+.host-link:hover{ opacity:1; color:var(--primary); background:var(--bg); }

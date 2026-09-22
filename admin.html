@@ -4,51 +4,20 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>퀴즈 배틀 · 관리자</title>
-<link rel="stylesheet" as="style" crossorigin
-      href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.css">
 <link rel="stylesheet" href="css/style.css">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+  // 주소를 하나로 합쳤습니다. 예전에 저장해 둔 주소로 들어와도 새 주소로 넘깁니다.
+  // 강사용 화면은 기본 주소의 '강사용 →' 버튼으로 들어갑니다.
+  location.replace('./?host=1');
+</script>
 </head>
-<body class="admin">
-<button id="muteBtn" class="mute-btn" title="배경음악 켜기/끄기">🔊</button>
+<body>
 <div class="wrap">
-
-  <!-- 암호 게이트 -->
-  <section id="gate" class="panel">
-    <h1>🎯 퀴즈 배틀 관리자</h1>
-    <p class="muted" style="margin:0">관리자 암호를 입력하세요.</p>
-    <input id="pw" type="password" placeholder="암호">
-    <button class="btn" id="pwBtn">입장</button>
-    <p id="pwErr" class="hidden err">암호가 틀렸어요.</p>
+  <section class="panel center stack">
+    <h1>주소가 하나로 합쳐졌어요</h1>
+    <p class="muted" style="margin:0">잠시 후 새 주소로 이동합니다.</p>
+    <p><a href="./?host=1">바로 이동하기</a></p>
   </section>
-
-  <!-- 퀴즈쇼 목록 -->
-  <section id="list" class="panel hidden">
-    <h1>내 퀴즈쇼</h1>
-    <div id="quizList" class="stack"></div>
-    <button class="btn" id="newQuizBtn">＋ 새 퀴즈쇼 만들기</button>
-  </section>
-
-  <!-- 편집기 -->
-  <section id="editor" class="panel hidden">
-    <div class="row">
-      <button class="btn btn-ghost" id="backToList">← 목록</button>
-      <h2 class="spacer">퀴즈쇼 편집</h2>
-      <button class="btn" id="saveQuiz">저장</button>
-    </div>
-    <input id="quizTitle" placeholder="퀴즈쇼 제목">
-    <div id="questions" class="stack"></div>
-    <div class="addrow">
-      <button id="addMc">＋ 객관식</button>
-      <button id="addOx">＋ O / X</button>
-      <button id="addShort">＋ 단답형</button>
-    </div>
-  </section>
-
-  <!-- 진행 조종석 -->
-  <section id="host" class="hidden stack" style="flex:1"></section>
-
 </div>
-<script type="module" src="js/admin.js"></script>
 </body>
 </html>
