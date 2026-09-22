@@ -8,6 +8,7 @@
   --mint:#12C2A0; --amber:#F5A623; --coral:#FF5A5F;
   --ink:#1E1B2E; --ink2:#6B6580;
   --bg:#F4F3FA; --card:#FFFFFF; --line:#E6E3F2;
+  --xl-green:#217346;   /* 엑셀 가져오기 전용 — 팔레트 4색과 역할이 겹치지 않게 따로 둔다 */
   --r-lg:18px; --r-md:14px; --r-sm:10px;
   --shadow:0 4px 16px rgba(30,27,46,.08);
   --shadow-lg:0 12px 32px rgba(30,27,46,.12);
@@ -283,3 +284,32 @@ body.admin .join-code{ font-size:4.4rem; }
   border-radius:var(--r-sm); opacity:.7;
 }
 .host-link:hover{ opacity:1; color:var(--primary); background:var(--bg); }
+
+/* ── 엑셀 일괄 가져오기 (편집기 맨 아래, 퀴즈쇼 전체 단위) ── */
+.hint{ margin:0; font-size:.8rem; color:var(--ink2); }
+.bulk{
+  border-top:1px dashed var(--line); margin-top:6px; padding-top:16px;
+  display:flex; flex-direction:column; gap:10px;
+}
+.scope-tag{
+  display:inline-flex; align-items:center; gap:6px;
+  font-size:.75rem; font-weight:700; color:var(--xl-green);
+}
+.scope-tag::before{ content:""; width:7px; height:7px; border-radius:50%; background:var(--xl-green); }
+.btn-excel{ background:var(--xl-green); box-shadow:0 3px 0 #17512F; }
+.btn-excel:hover{ box-shadow:0 4px 0 #17512F; }
+.btn-excel:active{ box-shadow:0 1px 0 #17512F; }
+a.btn{ text-decoration:none; display:inline-flex; align-items:center; }
+
+/* 가져오기 결과 알림 */
+.imsg{ border-radius:var(--r-md); padding:13px 16px; font-size:.92rem; display:flex; gap:11px; align-items:flex-start; }
+.imsg .mark{ flex:none; width:24px; height:24px; border-radius:50%; display:grid; place-items:center;
+  color:#fff; font-weight:900; font-size:.8rem; }
+.imsg b{ display:block; margin-bottom:3px; }
+.imsg ul{ margin:6px 0 0; padding-left:18px; }
+.imsg li{ margin-bottom:3px; }
+.imsg.ok{ background:rgba(18,194,160,.12); border:1px solid rgba(18,194,160,.45); }
+.imsg.ok .mark{ background:var(--mint); }
+.imsg.bad{ background:rgba(255,90,95,.10); border:1px solid rgba(255,90,95,.42); }
+.imsg.bad .mark{ background:var(--coral); }
+.qcard.fresh{ border-color:var(--mint); background:rgba(18,194,160,.06); }

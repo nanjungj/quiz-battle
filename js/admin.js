@@ -3,6 +3,7 @@ import { checkAnswer, calcScore, rankPlayers, rankQuestion, ROUND_MS } from './l
 import { startMusic, stopMusic, setUrgent, toggleMute, playVictory } from './music.js';
 import { prepareImage, getImage, prefetchImage, cacheImage } from './image.js';
 import { ADMIN_PASSWORD } from './config.js';   // README 2절 참고 — 암호는 js/config.js에서 바꾼다
+import { parseRows } from './excel.js';
 
 const SHAPES = ['▲', '◆', '●', '■'];
 
@@ -304,6 +305,82 @@ function move(i, delta) {
   renderQuestions();
 }
 function esc(s){ return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// ── 엑셀로 여러 문제 한 번에 ──
+// SheetJS는 880KB라 교육생 화면에 딸려가면 안 된다. 버튼을 누를 때만 내려받는다.
+let sheetJs = null;
+function loadSheetJs() {
+  if (window.XLSX) return Promise.resolve(window.XLSX);
+  if (sheetJs) return sheetJs;
+  sheetJs = new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    s.onload = () => resolve(window.XLSX);
+    s.onerror = () => { sheetJs = null; reject(new Error('엑셀 기능을 불러오지 못했어요. 인터넷 연결을 확인하고 다시 시도해 주세요.')); };
+    document.head.append(s);
+  });
+  return sheetJs;
+}
+
+$('#excelBtn').onclick = () => document.getElementById('excelFile').click();
+$('#excelFile').onchange = e => {
+  const file = e.target.files && e.target.files[0];
+  e.target.value = '';                 // 같은 파일을 다시 골라도 change가 뜨도록
+  if (file) importExcel(file);
+};
+
+function excelMsg(html, kind) {
+  const box = document.getElementById('excelMsg');
+  box.className = kind ? `imsg ${kind}` : '';
+  box.innerHTML = html;
+  box.classList.remove('hidden');
+}
+
+async function importExcel(file) {
+  excelMsg('<span>엑셀을 읽는 중…</span>', '');
+  let rows;
+  try {
+    const XLSX = await loadSheetJs();
+    const wb = XLSX.read(await file.arrayBuffer(), { type: 'array' });
+    // "문제" 탭을 먼저 찾고, 없으면 첫 번째 탭을 읽는다
+    const name = wb.SheetNames.includes('문제') ? '문제' : wb.SheetNames[0];
+    rows = XLSX.utils.sheet_to_json(wb.Sheets[name], { header: 1, blankrows: false, defval: '' });
+  } catch (err) {
+    excelMsg(`<span class="mark">!</span><span><b>파일을 읽지 못했어요</b>${esc(err.message || '엑셀 파일(.xlsx)이 맞는지 확인해 주세요.')}</span>`, 'bad');
+    return;
+  }
+
+  const { questions, errors } = parseRows(rows);
+
+  // 한 줄이라도 틀리면 아무것도 가져오지 않는다 —
+  // 일부만 들어가면 무엇이 빠졌는지 나중에 찾기 어렵다.
+  if (errors.length) {
+    excelMsg(
+      `<span class="mark">!</span><span>
+         <b>${errors.length}곳을 고쳐 주세요 — 아무것도 가져오지 않았습니다</b>
+         엑셀에서 아래 행을 고치고 다시 넣어 주세요.
+         <ul>${errors.map(m => `<li>${esc(m)}</li>`).join('')}</ul>
+       </span>`, 'bad');
+    return;
+  }
+
+  const from = draft.questions.length;
+  draft.questions.push(...questions);
+  openIdx = -1;                        // 한꺼번에 들어왔으니 전부 접은 채로 보여 준다
+  renderQuestions();
+  markFresh(from);
+  excelMsg(
+    `<span class="mark">✓</span><span>
+       <b>${questions.length}문항을 가져왔어요</b>
+       맨 뒤에 붙었습니다. <b style="display:inline">저장</b>을 눌러야 실제로 저장됩니다.
+     </span>`, 'ok');
+}
+
+// 새로 들어온 문항에 잠깐 표시를 남긴다
+function markFresh(fromIndex) {
+  const cards = document.querySelectorAll('#questions .qcard');
+  for (let i = fromIndex; i < cards.length; i++) cards[i].classList.add('fresh');
+}
 
 $('#saveQuiz').onclick = async () => {
   draft.title = $('#quizTitle').value.trim() || '제목 없는 퀴즈쇼';
